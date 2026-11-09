@@ -28,6 +28,12 @@ public class HoldConfiguration : IEntityTypeConfiguration<Hold>
         builder.HasIndex(h => new { h.ClassId, h.StudentId, h.Status })
             .HasDatabaseName("ix_holds_class_student_status");
 
+        // Backstop for the one-active-hold rule: at most one HELD/CONFIRMED row per student per class.
+        builder.HasIndex(h => new { h.ClassId, h.StudentId })
+            .IsUnique()
+            .HasFilter("\"Status\" IN ('Held', 'Confirmed')")
+            .HasDatabaseName("ux_holds_active_student_class");
+
         // Seat counting per class (held/confirmed totals).
         builder.HasIndex(h => new { h.ClassId, h.Status })
             .HasDatabaseName("ix_holds_class_status");

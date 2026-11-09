@@ -12,3 +12,9 @@
   - Seat counts via single query, expired HELD excluded from held count
   - 404/400 use the standard `{ error, message }` shape
   - Integration tests (Testcontainers Postgres): 9 passing
+- [x] Session 3: POST /classes/{classId}/holds — done
+  - `HoldsController` + `HoldService`: atomic conditional UPDATE seat claim, race-safe duplicate check, one transaction
+  - Migration: `HeldSeats`/`ConfirmedSeats` counters, no-oversell CHECK, partial unique index on active holds
+  - 400 (bad `X-Student-Id`), 404, 409 (no seat / duplicate) with standard error shape
+  - Integration tests incl. 60 concurrent students on 5 seats and 30 concurrent requests from one student: 22 passing total
+  - Still missing: `docs/BUSINESS_RULES.md` (rules 1 and 3 interpreted from the prompt; see ARCHITECTURE.md)

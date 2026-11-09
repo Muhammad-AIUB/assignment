@@ -41,6 +41,7 @@ try
         });
     builder.Services.AddSingleton(TimeProvider.System);
     builder.Services.AddScoped<IClassService, ClassService>();
+    builder.Services.AddScoped<IHoldService, HoldService>();
     builder.Services.AddFluentValidationAutoValidation();
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
     builder.Services.AddEndpointsApiExplorer();

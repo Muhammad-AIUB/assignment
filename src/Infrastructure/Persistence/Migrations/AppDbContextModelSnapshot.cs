@@ -28,6 +28,16 @@ namespace Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<int>("ConfirmedSeats")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("HeldSeats")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -40,6 +50,8 @@ namespace Infrastructure.Persistence.Migrations
 
                     b.ToTable("classes", null, t =>
                         {
+                            t.HasCheckConstraint("ck_classes_seats_not_oversold", "\"HeldSeats\" >= 0 AND \"ConfirmedSeats\" >= 0 AND \"HeldSeats\" + \"ConfirmedSeats\" <= \"TotalSeats\"");
+
                             t.HasCheckConstraint("ck_classes_total_seats_positive", "\"TotalSeats\" > 0");
                         });
                 });
@@ -81,6 +93,11 @@ namespace Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ClassId", "Status")
                         .HasDatabaseName("ix_holds_class_status");
+
+                    b.HasIndex("ClassId", "StudentId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_holds_active_student_class")
+                        .HasFilter("\"Status\" IN ('Held', 'Confirmed')");
 
                     b.HasIndex("Status", "ExpiresAt")
                         .HasDatabaseName("ix_holds_status_expires_at");

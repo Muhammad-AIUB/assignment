@@ -1,5 +1,8 @@
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Infrastructure;
+using Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -16,14 +19,9 @@ try
         .Enrich.FromLogContext()
         .WriteTo.Console());
 
-    // Postgres connection string: ConnectionStrings:Postgres (appsettings) or
-    // the ConnectionStrings__Postgres environment variable. Consumed by the
-    // DbContext in a later session; validated lazily there.
-    var connectionString = builder.Configuration.GetConnectionString("Postgres");
-    if (string.IsNullOrWhiteSpace(connectionString))
-    {
-        Log.Warning("ConnectionStrings:Postgres is not configured; set it in appsettings or ConnectionStrings__Postgres");
-    }
+    // Postgres connection string: ConnectionStrings:Postgres (appsettings) or the
+    // ConnectionStrings__Postgres env var. Hold duration: HOLD_DURATION_SECONDS (default 600).
+    builder.Services.AddInfrastructure(builder.Configuration);
 
     builder.Services.AddControllers();
     builder.Services.AddFluentValidationAutoValidation();
@@ -32,6 +30,13 @@ try
     builder.Services.AddSwaggerGen();
 
     var app = builder.Build();
+
+    // Apply pending migrations on startup.
+    await using (var scope = app.Services.CreateAsyncScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.MigrateAsync();
+    }
 
     app.UseSerilogRequestLogging();
     app.UseSwagger();

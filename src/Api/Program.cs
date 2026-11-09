@@ -1,3 +1,5 @@
+using Api.Dtos;
+using Api.Services;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Infrastructure;
@@ -23,7 +25,22 @@ try
     // ConnectionStrings__Postgres env var. Hold duration: HOLD_DURATION_SECONDS (default 600).
     builder.Services.AddInfrastructure(builder.Configuration);
 
-    builder.Services.AddControllers();
+    builder.Services.AddControllers()
+        .ConfigureApiBehaviorOptions(o =>
+        {
+            // All validation / binding failures use the standard error shape.
+            o.InvalidModelStateResponseFactory = ctx =>
+            {
+                var message = string.Join("; ", ctx.ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => string.IsNullOrWhiteSpace(e.ErrorMessage) ? "Invalid request." : e.ErrorMessage)
+                    .Distinct());
+                return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(
+                    new ErrorResponse("VALIDATION_ERROR", message));
+            };
+        });
+    builder.Services.AddSingleton(TimeProvider.System);
+    builder.Services.AddScoped<IClassService, ClassService>();
     builder.Services.AddFluentValidationAutoValidation();
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
     builder.Services.AddEndpointsApiExplorer();

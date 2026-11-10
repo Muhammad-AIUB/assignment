@@ -1,0 +1,96 @@
+/* Create class screen. Colours, type and shapes come from the tokens in
+   styles/tokens.css; the form fields, buttons and message cards are the shared
+   ones from styles/base.css and styles/components.css. Only the page layout and
+   the one new message variant live here. */
+
+.create-class {
+  padding-top: clamp(2rem, 5vw, 3.25rem);
+}
+
+.create-class-head {
+  max-width: 38rem;
+  margin-bottom: 1.75rem;
+}
+
+.create-class-kicker {
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--forest-700);
+}
+
+.create-class-head h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+
+.create-class-lead {
+  margin-top: 0.85rem;
+  font-size: clamp(1.05rem, 2.2vw, 1.2rem);
+  color: var(--ink-soft);
+}
+
+.create-class-form {
+  display: grid;
+  gap: 1.5rem;
+  max-width: 38rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+}
+
+/* A <fieldset> only to switch every field off at once; it has no look of its own. */
+.create-class-fields {
+  display: grid;
+  gap: 1.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.create-class-fields:disabled .field-input {
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+  cursor: not-allowed;
+}
+
+/* Seat counts line up and read as numbers. */
+.create-class-seats {
+  max-width: 14rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The message cards sit inside the form, under the fields, not between sections. */
+.create-class-alert {
+  margin-bottom: 0;
+}
+
+/* The backend's message can be long and unbroken (it quotes field names). */
+.create-class-alert .state-card-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.create-class-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+}
+
+.create-class-back {
+  font-weight: 500;
+  color: var(--ink-soft);
+  text-underline-offset: 0.2em;
+}
+
+.create-class-back:hover {
+  color: var(--ink);
+}
+
+/* The primary button spans the width on a phone, where it is the thumb target. */
+@media (max-width: 30rem) {
+  .create-class-actions .btn {
+    width: 100%;
+  }
+}

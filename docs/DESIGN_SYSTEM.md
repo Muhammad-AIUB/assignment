@@ -48,7 +48,8 @@ All four `styles/` files are loaded once from `src/main.tsx` through `styles/ind
   <p className="field-error">Name is required.</p>   {/* only when invalid */}
 </div>
 
-// Messages: state-card--error | state-card--warn | state-card--empty
+// Messages: state-card--error | state-card--warn | state-card--success | state-card--empty
+// (--success is the green counterpart of --error: use role="status" for it, role="alert" for an error)
 <div className="state-card state-card--error" role="alert">
   <span className="state-card-icon"><AlertIcon /></span>
   <p className="state-card-body"><strong>Headline</strong><span className="state-card-detail">Detail</span></p>
@@ -70,4 +71,4 @@ Icons are in `src/components/icons.tsx` (`ArrowRightIcon`, `IdCardIcon`, `CheckI
 
 ## Screens and their state
 
-Styled: the shell (header, navigation, registration-number capsule, footer) and the class list. **Not yet styled beyond the shell:** application status (`/holds/:holdId`), my applications (`/me`), create class (`/admin/new-class`). Build them from the blocks above; a screen that is only a heading already sits correctly in the page.
+Styled: the shell (header, navigation, registration-number capsule, footer), the class list, the application status screen (`/holds/:holdId`, page-only styling in `ApplicationStatus.css`), and create class (`/admin/new-class`, a good worked example of a form screen: `.card` + `.field` blocks, a `fieldset` to switch the whole form off, an error and a success `state-card`, the primary button with a spinner; its page-only layout is in `CreateClassPage.css`). **Not yet styled beyond the shell:** my applications (`/me`). Build it from the blocks above; a screen that is only a heading already sits correctly in the page.

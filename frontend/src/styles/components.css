@@ -127,6 +127,20 @@
   color: var(--gold-ink);
 }
 
+/* Something worked: the confirmed (green) colour, the counterpart of --error. */
+.state-card--success {
+  border-left: 5px solid var(--forest-600);
+}
+
+.state-card--success .state-card-icon {
+  background: var(--mint-soft);
+  color: var(--forest-800);
+}
+
+.state-card--success strong {
+  color: var(--forest-800);
+}
+
 .state-card--empty {
   align-items: center;
   justify-content: center;

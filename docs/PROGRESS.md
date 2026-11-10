@@ -33,3 +33,11 @@
   - Session 2 test seed now keeps the `HeldSeats`/`ConfirmedSeats` counters equal to its rows (the global sweep relies on that invariant)
   - Tests: 9 unit (worker scheduling, options) + 72 integration (11 new: sweeper, worker end-to-end, cleanup races, /health 200 and 503 against a stopped real Postgres) passing
   - Still missing: `docs/BUSINESS_RULES.md`; global exception-handling middleware
+- [x] Session 6: global exception handling + 4xx audit — done
+  - `ExceptionHandlingMiddleware` (`Api/Middleware`): any escaped exception is logged in full through Serilog and answered with `{ error, message }` and a 4xx, never a 500 or a stack trace (also in Development). `ExceptionMapper`: DB deadlock/serialization/unique/etc. -> 409 `CONFLICT`; DB data exceptions -> 400 `INVALID_INPUT`; `BadHttpRequestException` keeps its 4xx; client disconnect logged quietly (499); anything else -> 400 `UNEXPECTED_ERROR`. A response that already started is logged and the connection aborted
+  - `CorrelationIdMiddleware`: `X-Correlation-Id` (caller's, if safe, else generated) on every response and as the `CorrelationId` Serilog property on every log event of the request; `UNEXPECTED_ERROR` messages quote it as `Reference: <id>`. Console log template now prints properties
+  - Framework 4xx (unknown route, wrong method, wrong content type) now use the standard shape: `ROUTE_NOT_FOUND`, `METHOD_NOT_ALLOWED`, `UNSUPPORTED_MEDIA_TYPE`
+  - **Audit:** every documented or implied 4xx in `API_CONTRACT.md` (35 test rows: 34 error responses + the idempotent re-confirm 200; every endpoint except `GET /classes`, which has none) checked by `ContractErrorCodesTests`; all already returned the expected status and code. Defect found and fixed: `POST /classes` with a NUL character in `name` returned a 500 with a stack trace; now 400 `VALIDATION_ERROR`
+  - Not shapeable by middleware (Kestrel rejects before the pipeline): `%00` in the URL path, malformed request line, oversized headers
+  - Tests: 27 unit (+18, `ExceptionMapperTests`) + 132 integration (+60: `ExceptionHandlingTests`, `ContractErrorCodesTests`) passing; also smoke-tested on real Kestrel with Postgres stopped mid-run
+  - Still missing: `docs/BUSINESS_RULES.md`

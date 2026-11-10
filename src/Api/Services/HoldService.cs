@@ -92,6 +92,112 @@ public class HoldService(AppDbContext db, TimeProvider clock, IOptions<HoldOptio
             new HoldResponse(hold.Id, hold.ClassId, hold.StudentId, "HELD", hold.ExpiresAt));
     }
 
+    public async Task<HoldStatusResponse?> GetAsync(string holdId, CancellationToken ct)
+    {
+        var now = clock.GetUtcNow().UtcDateTime;
+        var row = await db.Holds.AsNoTracking()
+            .Where(h => h.Id == holdId)
+            .Select(h => new { h.Id, h.ClassId, h.Status, h.ExpiresAt })
+            .FirstOrDefaultAsync(ct);
+
+        // Read-only: expiry is computed here (rule 2), never written by a GET.
+        return row is null
+            ? null
+            : new HoldStatusResponse(row.Id, row.ClassId,
+                ToApiStatus(Hold.EffectiveStatus(row.Status, row.ExpiresAt, now)), row.ExpiresAt);
+    }
+
+    public async Task<HoldActionOutcome> ConfirmAsync(string holdId, string studentId, CancellationToken ct)
+    {
+        var outcome = await TransitionAsync(holdId, studentId, HoldTransition.Confirm, ct);
+        // Rule 5: re-confirming your own CONFIRMED hold is a success. Nothing was counted a second time:
+        // the guarded UPDATE matched no row, so the counters were never touched.
+        return outcome == HoldActionOutcome.AlreadyConfirmed ? HoldActionOutcome.Succeeded : outcome;
+    }
+
+    public Task<HoldActionOutcome> CancelAsync(string holdId, string studentId, CancellationToken ct) =>
+        TransitionAsync(holdId, studentId, HoldTransition.Cancel, ct);
+
+    public async Task<IReadOnlyList<MyHoldResponse>> ListForStudentAsync(string studentId, CancellationToken ct)
+    {
+        var now = clock.GetUtcNow().UtcDateTime;
+        var rows = await (
+            from h in db.Holds.AsNoTracking()
+            join c in db.Classes.AsNoTracking() on h.ClassId equals c.Id
+            where h.StudentId == studentId
+            orderby h.CreatedAt descending, h.Id
+            select new { h.Id, h.ClassId, ClassName = c.Name, h.Status, h.ExpiresAt }).ToListAsync(ct);
+
+        return rows.Select(r => new MyHoldResponse(r.Id, r.ClassId, r.ClassName,
+            ToApiStatus(Hold.EffectiveStatus(r.Status, r.ExpiresAt, now)), r.ExpiresAt)).ToList();
+    }
+
+    private enum HoldTransition { Confirm, Cancel }
+
+    /// <summary>
+    /// Shared atomic state change for confirm and cancel; same pattern as the seat claim in
+    /// <see cref="CreateAsync"/>. One statement both decides and applies the change:
+    /// the guarded UPDATE on the hold row (owner, still HELD, not expired) is the only thing that can
+    /// move a hold out of HELD, and the class counters move only for the row it returned. Concurrent
+    /// requests for the same hold queue on that row's lock and re-check the guard under READ COMMITTED, so
+    /// exactly one of them performs the transition and the counters move exactly once.
+    /// Lock order is hold row then class row, the same as the expiry cleanup in <see cref="CreateAsync"/>.
+    /// </summary>
+    private async Task<HoldActionOutcome> TransitionAsync(string holdId, string studentId,
+        HoldTransition kind, CancellationToken ct)
+    {
+        var now = clock.GetUtcNow().UtcDateTime;
+
+        // Constants only; no request data is ever concatenated into the SQL text.
+        var (holdSet, classSet) = kind == HoldTransition.Confirm
+            ? ("\"Status\" = 'Confirmed', \"ConfirmedAt\" = @now",
+               "\"HeldSeats\" = \"HeldSeats\" - 1, \"ConfirmedSeats\" = \"ConfirmedSeats\" + 1")
+            : ("\"Status\" = 'Cancelled'",
+               "\"HeldSeats\" = \"HeldSeats\" - 1");
+
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+        var dbTx = tx.GetDbTransaction();
+
+        var moved = await ExecuteScalarAsync(dbTx, $$"""
+            WITH moved AS (
+                UPDATE holds SET {{holdSet}}
+                WHERE "Id" = @holdId AND "StudentId" = @studentId
+                  AND "Status" = 'Held' AND "ExpiresAt" > @now
+                RETURNING "ClassId")
+            UPDATE classes SET {{classSet}}
+            WHERE "Id" IN (SELECT "ClassId" FROM moved)
+            RETURNING "Id"
+            """, ct, ("holdId", holdId), ("studentId", studentId), ("now", now));
+
+        if (moved is not null)
+        {
+            await tx.CommitAsync(ct);
+            return HoldActionOutcome.Succeeded;
+        }
+
+        // Nothing changed (the transaction rolls back on dispose). Work out why, from committed state:
+        // if a concurrent request won the race its transaction has already finished, because our
+        // UPDATE waited on that row's lock.
+        var row = await db.Holds.AsNoTracking()
+            .Where(h => h.Id == holdId)
+            .Select(h => new { h.StudentId, h.Status, h.ExpiresAt })
+            .FirstOrDefaultAsync(ct);
+
+        if (row is null) return HoldActionOutcome.NotFound;
+        if (row.StudentId != studentId) return HoldActionOutcome.NotOwner;
+
+        return Hold.EffectiveStatus(row.Status, row.ExpiresAt, now) switch
+        {
+            HoldStatus.Confirmed => HoldActionOutcome.AlreadyConfirmed,
+            HoldStatus.Cancelled => HoldActionOutcome.AlreadyCancelled,
+            HoldStatus.Expired => HoldActionOutcome.Expired,
+            // Owner + HELD + unexpired is exactly what the UPDATE matches, and HELD never comes back once left.
+            _ => throw new InvalidOperationException($"Hold '{holdId}' is active but the guarded update matched no row.")
+        };
+    }
+
+    private static string ToApiStatus(HoldStatus status) => status.ToString().ToUpperInvariant();
+
     // Expired rows were swept in step 1, so any remaining HELD/CONFIRMED row is genuinely active.
     private Task<bool> HasActiveHoldAsync(string classId, string studentId, CancellationToken ct) =>
         db.Holds.AsNoTracking().AnyAsync(h =>

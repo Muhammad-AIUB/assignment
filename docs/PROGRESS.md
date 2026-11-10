@@ -18,3 +18,10 @@
   - 400 (bad `X-Student-Id`), 404, 409 (no seat / duplicate) with standard error shape
   - Integration tests incl. 60 concurrent students on 5 seats and 30 concurrent requests from one student: 22 passing total
   - Still missing: `docs/BUSINESS_RULES.md` (rules 1 and 3 interpreted from the prompt; see ARCHITECTURE.md)
+- [x] Session 4: hold lifecycle endpoints — done
+  - GET /holds/{holdId}, POST /holds/{holdId}/confirm, DELETE /holds/{holdId}, GET /me/holds (in `HoldsController` / `HoldService`)
+  - Lazy expiry: `Hold.EffectiveStatus` reports EXPIRED for a HELD hold past `ExpiresAt` with no background job; GETs never write
+  - Confirm and delete share one atomic guarded UPDATE + counter update (Session 3 pattern); confirm is idempotent for the owner and counts a seat once; delete releases the seat immediately
+  - 400 (bad `X-Student-Id`), 404 `HOLD_NOT_FOUND`, 409 `NOT_HOLD_OWNER` / `HOLD_EXPIRED` / `HOLD_CANCELLED` / `HOLD_ALREADY_CONFIRMED`, standard error shape
+  - Integration tests: 39 new (incl. 20 concurrent confirms, 10 concurrent cancels, confirm-vs-cancel race): 61 passing total
+  - Still missing: `docs/BUSINESS_RULES.md` (rules 2, 5 and the delete assumption taken from the prompt; see ARCHITECTURE.md); global exception-handling middleware

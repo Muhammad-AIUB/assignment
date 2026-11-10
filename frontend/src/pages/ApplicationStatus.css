@@ -1,0 +1,241 @@
+/* The application status screen: one card with the status, the countdown, the two
+   actions and the hold's reference numbers. Colours, type and shape come from
+   src/styles/tokens.css; the shared blocks (.btn, .badge, .state-card, .bone,
+   .spinner) are in base.css and components.css. */
+
+.hold {
+  padding-block: clamp(1.5rem, 5vw, 3rem) clamp(2rem, 6vw, 4rem);
+}
+
+/* The messages above the card sit in the same narrow column as the card. */
+.hold > .state-card {
+  max-width: 34rem;
+  margin-inline: auto;
+  margin-bottom: 1.25rem;
+}
+
+/* ---- Card ----------------------------------------------------------------- */
+
+.hold-card {
+  max-width: 34rem;
+  margin-inline: auto;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+  animation: rise 0.6s var(--ease-out) backwards;
+}
+
+.hold-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  padding: 1.4rem 1.5rem 1.2rem;
+}
+
+.hold-head h1 {
+  font-size: clamp(1.5rem, 5.5vw, 2rem);
+}
+
+/* ---- The panel: the countdown, or the final outcome ----------------------- */
+
+.hold-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1.6rem 1.5rem 1.7rem;
+  background: var(--forest-900);
+  color: var(--on-dark);
+  text-align: center;
+  transition: background-color 0.4s;
+}
+
+/* Under a minute: the panel turns vermilion. The cream text on it is 5.5:1. */
+.hold-panel[data-urgent="true"] {
+  background: var(--vermilion-deep);
+}
+
+.hold-card[data-status="CONFIRMED"] .hold-panel {
+  background: var(--forest-800);
+}
+
+.hold-card[data-status="EXPIRED"] .hold-panel,
+.hold-card[data-status="CANCELLED"] .hold-panel {
+  background: var(--paper-deep);
+  color: var(--ink);
+}
+
+.hold-panel--loading {
+  background: var(--paper-deep);
+}
+
+.hold-clock {
+  font-family: var(--font-display);
+  font-size: clamp(3.4rem, 17vw, 5.4rem);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.hold-panel-caption {
+  color: var(--on-dark-soft);
+  font-size: 0.98rem;
+}
+
+.hold-panel[data-urgent="true"] .hold-panel-caption {
+  color: var(--on-dark);
+}
+
+.hold-card[data-status="EXPIRED"] .hold-panel-caption,
+.hold-card[data-status="CANCELLED"] .hold-panel-caption {
+  color: var(--ink-soft);
+}
+
+/* The mark for a status that is over: a check on green, an alert on paper. */
+.hold-seal {
+  display: grid;
+  place-items: center;
+  width: 4.2rem;
+  height: 4.2rem;
+  border-radius: 50%;
+  background: var(--mint);
+  color: var(--forest-900);
+  animation: seal-in 0.5s var(--ease-out) backwards;
+}
+
+.hold-seal svg {
+  width: 2.1rem;
+  height: 2.1rem;
+}
+
+.hold-card[data-status="EXPIRED"] .hold-seal,
+.hold-card[data-status="CANCELLED"] .hold-seal {
+  background: var(--vermilion-soft);
+  color: var(--danger-ink);
+}
+
+@keyframes seal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+/* ---- Body: text, actions, messages, reference numbers --------------------- */
+
+.hold-body {
+  display: grid;
+  gap: 1.15rem;
+  padding: 1.4rem 1.5rem 1.6rem;
+}
+
+.hold-text {
+  color: var(--ink-soft);
+}
+
+.hold-actions {
+  display: grid;
+  gap: 0.75rem;
+}
+
+@media (min-width: 30rem) {
+  .hold-actions {
+    grid-template-columns: 1.5fr 1fr;
+  }
+}
+
+/* The quieter of the two actions: an outline, not the vermilion fill. A disabled
+   .btn already looks inert (base.css), and that rule is the more specific one. */
+.hold-cancel {
+  background: transparent;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1.5px var(--field-border);
+}
+
+.hold-cancel:hover:not(:disabled) {
+  background: var(--paper-deep);
+}
+
+.hold-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--vermilion);
+  background: var(--vermilion-soft);
+  color: var(--danger-ink);
+  font-size: 0.98rem;
+  font-weight: 500;
+}
+
+.hold-error > svg {
+  flex: none;
+  width: 1.2rem;
+  height: 1.2rem;
+  margin-top: 0.2rem;
+}
+
+.hold-error-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.hold-error-detail {
+  font-weight: 400;
+}
+
+/* A link that carries on from a finished application: to the classes, or to the
+   student's list. */
+.hold-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-self: start;
+  color: var(--forest-800);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.hold-next svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  transition: transform 0.2s var(--ease-out);
+}
+
+.hold-next:hover svg {
+  transform: translateX(4px);
+}
+
+.hold-meta {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.2rem 0 0;
+  padding-top: 1.1rem;
+  border-top: 2px dashed var(--line);
+  font-size: 0.9rem;
+}
+
+.hold-meta > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.1rem 1rem;
+}
+
+.hold-meta dt {
+  color: var(--ink-soft);
+}
+
+.hold-meta dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  /* Ids have no spaces: let a long one wrap rather than push the card sideways. */
+  overflow-wrap: anywhere;
+}

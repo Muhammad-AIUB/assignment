@@ -308,3 +308,29 @@ Every `localStorage` access is in `try/catch` (blocked site data, private window
 ### For the screens that follow
 - Do not fire an id-requiring query before an id exists: use `enabled: studentId !== null` (from `useStudentId()`), otherwise the first call is a guaranteed 400.
 - **Put `studentId` in the query key** of anything that depends on it (`/me/holds`, a hold read as its owner). The header changes when the id changes, but TanStack Query only refetches when the key changes; without it a student switching numbers would briefly see the previous student's cached applications.
+
+## Session 13 — Class list screen (polling `GET /classes`)
+
+Scope: the `/` screen only. The apply button is not wired to the API (apply flow, Session F4); the error text helper is local to this screen (error handling, later).
+
+### Polling policy: 4 s interval, no retry
+`useClassList()` uses `refetchInterval: 4000` (the spec says 3-5 s) and `retry: false`. TanStack's default is three retries with backoff, about 7 s before a first-load error would appear. Here the next poll is the retry: an outage is shown after the first failed request and the screen recovers by itself when a poll succeeds. `refetchIntervalInBackground` is left at its default (off): polling pauses while the tab is hidden and a refetch fires when it is visible again, so nothing hammers the backend for a page nobody is looking at. A window that is merely unfocused but visible keeps polling.
+
+### "Spinner on first load only" needs more than `isPending`
+In TanStack Query v5, `fetchState()` (query-core `query.ts`) sets `status: 'pending'` and `error: null` whenever a fetch starts and the query has no data. After a failed first load, every poll would therefore switch the screen error -> loading -> error, the same full-page flicker the first-load-only spinner is meant to avoid (the library's source was read, not assumed). The hook keeps the last error in state until a request succeeds, and treats "failed at least once and not succeeded since" (`errorUpdateCount > 0 && !isSuccess`) as an error even while the retrying request is in flight. Once there is data, `status` stays `error` between polls on its own, so that case needed nothing extra. Observed in a browser: one loading -> error transition, then no further change across seven failing polls.
+
+### Three states, one union
+`useClassList()` returns `loading` (first request only), `error` (no data yet) or `ready` (data, plus `refreshError` when the latest refresh failed). With data on screen a failed refresh keeps the last numbers and shows a banner saying they may be out of date, rather than replacing a usable table with an error. A stale seat count is still better than none because the backend decides a hold's outcome anyway (409 if the seat is gone).
+
+### Query key and the student id
+The key is `["classes"]`, with no student id: the response is the same for everyone. The interceptor still sends `X-Student-Id` once one is entered (Session 12), which the backend ignores here. The key is exported (`classListQueryKey`) so the create-class and apply screens can invalidate it for an immediate refresh instead of waiting up to 4 s.
+
+### Disabled rule and the Full tag
+The button is disabled when `availableSeats <= 0` (the spec says `=== 0`; the backend's CHECK keeps it from going negative, so `<=` only guards against a bad value). A disabled button gives no reason by itself, so a "Full" tag is shown next to the 0.
+
+### Layout
+A real `<table>` (column headers, row header = class name, caption and the apply column header visually hidden). Each button has `aria-label="আবেদন করুন: <class name>"` so screen readers can tell the identical buttons apart. Narrow screens scroll the table inside its own box; the last column is `position: sticky; right: 0` with `background: Canvas` so the apply button never scrolls out of view. Colours are either inherited, set with opacity, or carry their own background, so they read on a light or a dark page (the existing header CSS still uses fixed greys that are faint on a dark page; left to the styling session).
+
+### Not done, on purpose
+- The real backend with data, from a browser: blocked by the missing CORS configuration (Session 11 open item). The failure case was exercised against it (the page shows the error), everything else against a throwaway mock.
+- No automated tests: no frontend test runner exists, and adding one is outside this session.

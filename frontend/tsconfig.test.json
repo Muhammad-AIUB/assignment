@@ -1,0 +1,11 @@
+{
+  // The app plus its tests and the test helpers. Same strictness as the app;
+  // it only adds the Node types msw and Vitest need.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "types": ["vite/client", "node"]
+  },
+  "include": ["src"],
+  "exclude": []
+}

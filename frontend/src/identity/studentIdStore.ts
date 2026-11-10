@@ -79,3 +79,13 @@ export function subscribeStudentId(listener: () => void): () => void {
     listeners.delete(listener);
   };
 }
+
+/**
+ * Test-only. The id is cached in module state (`current`), so clearing
+ * localStorage between tests does not forget it. Calling this makes the next
+ * getStudentId() read localStorage again, and drops every subscriber.
+ */
+export function resetStudentIdStoreForTests(): void {
+  current = undefined;
+  listeners.clear();
+}

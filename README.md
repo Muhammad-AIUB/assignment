@@ -39,8 +39,28 @@ git-ignored) and edit it; Docker Compose picks it up on the next `up`.
 | `HOLD_DURATION_SECONDS` | `600` | How long a hold lasts before the seat is released (must be > 0) |
 | `HOLD_EXPIRY_SWEEP_ENABLED` | `true` | Background job that tidies expired holds. Holds expire correctly even when it is off |
 | `HOLD_EXPIRY_SWEEP_INTERVAL_SECONDS` | `5` | How often that job runs |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:4173` | Browser origins allowed to call the API, comma-separated (see [Calling the API from a browser](#calling-the-api-from-a-browser-cors)). Empty means none |
 | `API_PORT` | `8080` | Host port the API is published on |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | `school_admission` / `postgres` / `postgres` | Database credentials. Only applied when the volume is first created; after changing them run `docker compose down -v` |
+
+### Calling the API from a browser (CORS)
+
+A web page can only read the API's answers if the API says its origin is allowed. `CORS_ALLOWED_ORIGINS` is that list: each
+entry is the scheme, host and port of the page (`http://localhost:5173`), compared exactly.
+
+- **Default:** `http://localhost:5173` (`npm run dev`) and `http://localhost:4173` (`npm run preview`), so the frontend works
+  out of the box. Open the frontend from any other address (another port, `127.0.0.1`, a deployed host) and that address
+  has to be added, for example `CORS_ALLOWED_ORIGINS=http://localhost:5173,https://school.example` in `.env`.
+- **No wildcard.** `*`, `null`, a path, a query or credentials are refused, and the API stops at startup with a message
+  naming the setting, so a typo cannot silently turn into "the browser blocks everything".
+- **Empty means off.** `CORS_ALLOWED_ORIGINS=` allows no browser origin (right when the frontend and the API share one origin).
+  Deleting the line, as opposed to leaving it empty, restores the default.
+- Only `GET`, `POST` and `DELETE` are allowed, with the `Content-Type` and `X-Student-Id` request headers; pages can read the
+  `X-Correlation-Id` response header. Errors carry the CORS headers too, so a page can show the `message` of a 4xx.
+- `curl`, tests and other servers send no `Origin` header and are not affected.
+
+CORS is something browsers enforce for their pages; it is not access control. A request from another origin is still
+answered, the browser just will not hand the answer to that page.
 
 ## Try it
 

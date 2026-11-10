@@ -1,4 +1,5 @@
 using Api.BackgroundServices;
+using Api.Cors;
 using Api.Dtos;
 using Api.Middleware;
 using Api.Services;
@@ -47,6 +48,10 @@ try
                     new ErrorResponse("VALIDATION_ERROR", message));
             };
         });
+    // Which browser origins may call the API: CORS_ALLOWED_ORIGINS (default: the local frontend dev servers).
+    // A bad value throws here, so the host stops at startup (logged as Fatal below) instead of refusing every browser later.
+    var corsOptions = ApiCorsOptions.FromConfiguration(builder.Configuration);
+    builder.Services.AddApiCors(corsOptions.AllowedOrigins);
     builder.Services.AddSingleton(TimeProvider.System);
     builder.Services.AddScoped<IClassService, ClassService>();
     builder.Services.AddScoped<IHoldService, HoldService>();
@@ -60,6 +65,11 @@ try
 
     var app = builder.Build();
 
+    if (corsOptions.AllowedOrigins.Count == 0)
+        app.Logger.LogInformation("CORS is off: {Setting} is blank, so no browser origin may call this API", ApiCorsOptions.ConfigKey);
+    else
+        app.Logger.LogInformation("CORS allows browser origins {AllowedOrigins}", corsOptions.AllowedOrigins);
+
     // Apply pending migrations on startup.
     await using (var scope = app.Services.CreateAsyncScope())
     {
@@ -68,9 +78,12 @@ try
     }
 
     // Order matters. The correlation id goes first so request logging and everything inside it carries it; the exception
-    // handler sits inside request logging so the request log records the status the client actually received.
+    // handler sits inside request logging so the request log records the status the client actually received. CORS sits
+    // between the two: inside request logging, so preflights are logged too, and outside the exception handler, so a
+    // preflight never reaches a controller.
     app.UseMiddleware<CorrelationIdMiddleware>();
     app.UseSerilogRequestLogging();
+    app.UseCors();
     app.UseMiddleware<ExceptionHandlingMiddleware>();
 
     // 4xx the framework produces with no body of its own (unknown route 404, wrong method 405, wrong content type 415)

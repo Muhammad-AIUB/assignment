@@ -80,6 +80,14 @@ change, the setting or place is named. The request/response shapes themselves ar
 23. **Timestamps are UTC (ISO 8601, ending in `Z`).** The database keeps microseconds, so the `expiresAt` in the response
     that creates a hold can show one more fractional digit than the same hold read back later; the two differ by less than
     a microsecond.
+24. **Browsers may call the API only from an explicit list of origins (CORS).** `CORS_ALLOWED_ORIGINS` is a comma-separated
+    list of origins (scheme, host, port), default `http://localhost:5173,http://localhost:4173` (the frontend's dev and
+    preview servers). Entries are matched exactly: no wildcard, and a malformed value stops the API at startup. Blank means
+    no origin, so CORS is off. Only `GET`, `POST` and `DELETE` and the `Content-Type` and `X-Student-Id` request headers are
+    allowed, `X-Correlation-Id` is readable by pages, and error responses carry the headers too. Callers that send no
+    `Origin` header (curl, other servers) are unaffected. *Why:* the frontend is served from its own origin, and without
+    this a browser discards every response. This is not access control: a request from another origin is still answered,
+    the browser just will not give it to that page (assumption 1 still holds). No contract field or status changed.
 
 ## Out of scope
 

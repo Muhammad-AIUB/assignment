@@ -1,0 +1,221 @@
+/* Shared building blocks used by more than one screen: entrance and number
+   animations, the loading skeleton, the spinner, message cards (error / warning /
+   empty), cards and form fields. Page-specific styling stays next to its page.
+   Colours, type and shape come from tokens.css. */
+
+/* ---- Motion --------------------------------------------------------------- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+@keyframes tick {
+  from {
+    opacity: 0;
+    transform: translateY(45%);
+    filter: blur(3px);
+  }
+}
+
+@keyframes flash {
+  0% {
+    color: var(--vermilion);
+  }
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A number that changes drops in (and flashes before settling on its own colour).
+   Put `key={value}` on the element so a new value replays it. `backwards`, not
+   `both`: the end state must not be pinned, or it would override a hover transform. */
+.tick {
+  display: inline-block;
+  animation:
+    tick 0.55s var(--ease-out) backwards,
+    flash 1.4s ease-out;
+}
+
+/* ---- Loading -------------------------------------------------------------- */
+
+.spinner {
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 2.5px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* A grey placeholder block with a moving highlight. Give it a size with a modifier. */
+.bone {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--paper-deep) 0%, #f8f3e9 50%, var(--paper-deep) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+
+/* ---- Messages: error, stale data, empty ----------------------------------- */
+
+.state-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1.1rem 1.3rem;
+  border-radius: var(--radius-md);
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+}
+
+.state-card-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+}
+
+.state-card-icon svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+.state-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.state-card-detail {
+  font-size: 0.95rem;
+}
+
+.state-card--error {
+  border-left: 5px solid var(--vermilion);
+}
+
+.state-card--error .state-card-icon {
+  background: var(--vermilion-soft);
+  color: var(--vermilion-deep);
+}
+
+.state-card--error strong {
+  color: var(--danger-ink);
+}
+
+.state-card--warn {
+  border-left: 5px solid var(--gold);
+}
+
+.state-card--warn .state-card-icon {
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+}
+
+.state-card--empty {
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 3.5rem 1.5rem;
+  border: 2px dashed var(--line);
+  background: transparent;
+  box-shadow: none;
+  text-align: center;
+}
+
+.state-card--empty .state-card-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+}
+
+.state-card--empty .state-card-icon svg {
+  width: 1.7rem;
+  height: 1.7rem;
+}
+
+/* ---- Card ----------------------------------------------------------------- */
+
+.card {
+  padding: 1.4rem;
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---- Form fields ---------------------------------------------------------- */
+/* <div class="field">
+     <label class="field-label" for="x">Name</label>
+     <input class="field-input" id="x" aria-describedby="x-hint" />
+     <p class="field-hint" id="x-hint">...</p>          (or .field-error, with aria-invalid on the input)
+   </div> */
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.field-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.field-hint {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.field-input {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.6rem 0.95rem;
+  border: 1.5px solid var(--field-border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 1.05rem;
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s;
+}
+
+.field-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.field-input:hover {
+  border-color: var(--field-border-hover);
+}
+
+.field-input:focus {
+  outline: 0;
+  border-color: var(--forest-600);
+  box-shadow: 0 0 0 4px rgba(27, 122, 93, 0.22);
+}
+
+.field-input[aria-invalid="true"] {
+  border-color: var(--vermilion);
+  box-shadow: 0 0 0 4px rgba(210, 56, 31, 0.12);
+}
+
+.field-error {
+  color: var(--danger-ink);
+  font-size: 0.92rem;
+  font-weight: 500;
+}

@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent } from "react";
 import { useStudentId } from "../identity/StudentIdProvider";
+import { CheckIcon, IdCardIcon } from "./icons";
 
 const INVALID_MESSAGE = "Enter exactly 17 digits (0-9), for example 20152691234567890.";
 
@@ -28,25 +29,42 @@ export default function StudentIdInput() {
   }
 
   const saved = studentId !== null && draft.trim() === studentId;
+  // Drives the colours in AppLayout.css; the text below is what tells people.
+  const state = error !== null ? "error" : saved ? "saved" : "idle";
 
   return (
-    <form className="student-id-form" onSubmit={handleSubmit} noValidate>
-      <label htmlFor={inputId}>Registration number</label>
-      <input
-        id={inputId}
-        name="studentId"
-        type="text"
-        inputMode="numeric"
-        autoComplete="off"
-        value={draft}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          setError(null);
-        }}
-        aria-invalid={error !== null}
-        aria-describedby={messageId}
-      />
-      <button type="submit">Save</button>
+    <form
+      className="student-id-form"
+      data-state={state}
+      onSubmit={handleSubmit}
+      noValidate
+    >
+      <label className="student-id-label" htmlFor={inputId}>
+        Registration number
+      </label>
+      <div className="student-id-field">
+        <span className="student-id-icon">
+          {saved ? <CheckIcon /> : <IdCardIcon />}
+        </span>
+        <input
+          id={inputId}
+          name="studentId"
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="17-digit number"
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setError(null);
+          }}
+          aria-invalid={error !== null}
+          aria-describedby={messageId}
+        />
+        <button type="submit" className="student-id-save">
+          Save
+        </button>
+      </div>
       <p
         id={messageId}
         className={error !== null ? "student-id-message error" : "student-id-message"}

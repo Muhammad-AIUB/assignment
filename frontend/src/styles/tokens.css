@@ -1,0 +1,70 @@
+/* Design tokens: the single source for colour, type, space, shape and motion.
+   Components use these names and never hard-code a colour, so the look can be
+   retuned here in one place. */
+:root {
+  /* One fixed light theme (form controls, scrollbars and the like follow it). */
+  color-scheme: light;
+
+  /* Bottle green: chrome, hero, the "confirmed" colour. */
+  --forest-950: #06241b;
+  --forest-900: #0a3326;
+  --forest-800: #0f4636;
+  --forest-700: #145a45;
+  --forest-600: #1b7a5d;
+
+  /* Warm paper: page and cards. */
+  --paper: #f4efe4;
+  --paper-deep: #e8e0cd;
+  --card: #fffcf5;
+  /* Decorative dividers only. Too faint (1.4:1) to mark the edge of a control. */
+  --line: #e3dac5;
+  /* The edge of a form control: 3.5:1 on --card, as WCAG asks of UI boundaries. */
+  --field-border: #8c8672;
+  --field-border-hover: #6f6a58;
+
+  /* Ink: text on paper. ink-soft and ink-faint both clear 4.5:1 on --paper. */
+  --ink: #13221c;
+  --ink-soft: #4a5851;
+  --ink-faint: #5d6a63;
+
+  /* Vermilion: the one action colour, and urgency. White text on it is 4.8:1. */
+  --vermilion: #d2381f;
+  --vermilion-deep: #b32d16;
+  --vermilion-soft: #fbe4de;
+  --danger-ink: #8c2412;
+
+  /* Gold: "on hold", highlights on dark green. */
+  --gold: #e8b04a;
+  --gold-soft: #fbecc9;
+  --gold-ink: #7a4f00;
+
+  /* Light mint: free seats, and "live" on dark green. */
+  --mint: #5be3a5;
+  --mint-soft: #cfe8da;
+
+  /* Text on dark green. */
+  --on-dark: #f4efe4;
+  --on-dark-soft: rgba(244, 239, 228, 0.76);
+
+  /* Type. Fraunces has no Bangla glyphs, so Bangla inside a heading falls back, glyph by
+     glyph, to Hind Siliguri (already loaded for the body), then Georgia for Latin. */
+  --font-display: "Fraunces Variable", "Hind Siliguri", Georgia, "Times New Roman", serif;
+  --font-body: "Hind Siliguri", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Layout */
+  --page-max: 72rem;
+  --gutter: clamp(1rem, 4vw, 2rem);
+
+  /* Shape */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  /* Depth */
+  --shadow-card: 0 1px 0 rgba(19, 34, 28, 0.05), 0 14px 32px -18px rgba(19, 34, 28, 0.45);
+  --shadow-card-hover: 0 1px 0 rgba(19, 34, 28, 0.05), 0 26px 44px -20px rgba(19, 34, 28, 0.55);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+}

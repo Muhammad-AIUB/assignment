@@ -1,11 +1,21 @@
 import axios from "axios";
+import type { CSSProperties } from "react";
 import { useApplyForClass } from "../api/useApplyForClass";
-import { useClassList } from "../api/useClassList";
+import { useClassList, type ClassListState } from "../api/useClassList";
 import type { ApiErrorBody, SchoolClass } from "../api/types";
-import "./ClassListPage.css";
+import { AlertIcon, ArrowRightIcon, InboxIcon } from "../components/icons";
+import { seatStatus, splitClassName, type SeatStatus } from "./classSeats";
+import SeatStrip from "./SeatStrip";
+import "./ClassCards.css";
 
 /** Fallback wording from docs/FRONTEND_SPEC.md ("Error handling"). */
 const GENERIC_ERROR = "কিছু একটা ভুল হয়েছে, আবার চেষ্টা করুন";
+
+const STATUS_LABEL: Record<SeatStatus, string> = {
+  open: "Open",
+  filling: "Filling fast",
+  full: "Full",
+};
 
 /** The `message` of the backend's `{ error, message }` body, if the error has one. */
 function backendMessage(error: unknown): string | null {
@@ -41,8 +51,8 @@ function ErrorText({ error }: { error: unknown }) {
   const detail = errorDetail(error);
   return (
     <>
-      <strong>{GENERIC_ERROR}</strong>
-      {detail !== null && <span className="class-list-detail">{detail}</span>}
+      <strong lang="bn">{GENERIC_ERROR}</strong>
+      {detail !== null && <span className="state-card-detail">{detail}</span>}
     </>
   );
 }
@@ -61,44 +71,190 @@ function ApplyErrorText({ error }: { error: unknown }) {
   return <ErrorText error={error} />;
 }
 
-function ClassRow({ schoolClass }: { schoolClass: SchoolClass }) {
+/** How a card's position in the grid staggers its entrance animation. */
+function indexStyle(index: number): CSSProperties {
+  return { "--i": index } as CSSProperties;
+}
+
+function ClassCard({ schoolClass, index }: { schoolClass: SchoolClass; index: number }) {
   const apply = useApplyForClass();
-  const full = schoolClass.availableSeats <= 0;
+  const status = seatStatus(schoolClass);
+  const full = status === "full";
+  const { title, subtitle } = splitClassName(schoolClass.name);
+
   return (
-    <>
-      <tr>
-        <th scope="row">{schoolClass.name}</th>
-        <td className="class-list-num">{schoolClass.totalSeats}</td>
-        <td className="class-list-num">{schoolClass.heldSeats}</td>
-        <td className="class-list-num">{schoolClass.confirmedSeats}</td>
-        <td className="class-list-num">
-          {schoolClass.availableSeats}
-          {full && <span className="class-list-full">Full</span>}
-        </td>
-        <td>
-          {/* Disabled while the request is in flight so a double click cannot
-              send two applications. On success the hook navigates away. */}
-          <button
-            type="button"
-            disabled={full || apply.isPending}
-            aria-busy={apply.isPending}
-            aria-label={`আবেদন করুন: ${schoolClass.name}`}
-            onClick={() => apply.mutate(schoolClass.id)}
-          >
-            আবেদন করুন
-          </button>
-        </td>
-      </tr>
-      {apply.isError && (
-        <tr>
-          <td colSpan={6} className="class-list-apply-error-cell">
-            <p className="class-list-apply-error" role="alert">
-              <ApplyErrorText error={apply.error} />
-            </p>
-          </td>
-        </tr>
-      )}
-    </>
+    <li className="class-card" data-status={status} style={indexStyle(index)}>
+      <div className="class-card-main">
+        <div className="class-card-top">
+          <h3 className="class-card-name">
+            {title}
+            {subtitle !== null && (
+              <span className="class-card-sub">
+                <span className="visually-hidden"> - </span>
+                {subtitle}
+              </span>
+            )}
+          </h3>
+          <span className={`badge badge--${status}`}>{STATUS_LABEL[status]}</span>
+        </div>
+
+        <div className="class-card-count">
+          <span className="class-card-avail">
+            <span key={schoolClass.availableSeats} className="tick">
+              {schoolClass.availableSeats}
+            </span>
+          </span>
+          <span className="class-card-count-text">
+            seats left
+            <span className="class-card-of"> of {schoolClass.totalSeats}</span>
+          </span>
+        </div>
+
+        <SeatStrip schoolClass={schoolClass} />
+
+        <ul className="seat-legend">
+          <li>
+            <span className="swatch swatch--confirmed" aria-hidden="true" />
+            <b>{schoolClass.confirmedSeats}</b> confirmed
+          </li>
+          <li>
+            <span className="swatch swatch--held" aria-hidden="true" />
+            <b>{schoolClass.heldSeats}</b> on hold
+          </li>
+          <li>
+            <span className="swatch swatch--free" aria-hidden="true" />
+            <b>{schoolClass.availableSeats}</b> available
+          </li>
+        </ul>
+      </div>
+
+      <div className="class-card-tear" aria-hidden="true" />
+
+      <div className="class-card-stub">
+        {/* Disabled while the request is in flight so a double click cannot
+            send two applications. On success the hook navigates away. */}
+        <button
+          type="button"
+          className="btn btn--primary class-card-apply"
+          disabled={full || apply.isPending}
+          aria-busy={apply.isPending}
+          aria-label={`আবেদন করুন: ${schoolClass.name}`}
+          onClick={() => apply.mutate(schoolClass.id)}
+        >
+          <span lang="bn">আবেদন করুন</span>
+          {apply.isPending ? (
+            <span className="spinner" aria-hidden="true" />
+          ) : (
+            <ArrowRightIcon className="btn-icon" />
+          )}
+        </button>
+
+        {apply.isError && (
+          <p className="class-card-error" role="alert">
+            <AlertIcon />
+            <ApplyErrorText error={apply.error} />
+          </p>
+        )}
+
+        {full && !apply.isError && (
+          <p className="class-card-note">
+            {schoolClass.heldSeats > 0
+              ? "Seats on hold may reopen shortly."
+              : "There are no seats left in this class."}
+          </p>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/** Placeholder cards for the very first load, in the real cards' shape. */
+function SkeletonGrid() {
+  return (
+    <div role="status">
+      <span className="visually-hidden">Loading classes…</span>
+      <ul className="class-grid" aria-hidden="true">
+        {[0, 1, 2].map((n) => (
+          <li key={n} className="class-card class-card--skeleton">
+            <div className="class-card-main">
+              <span className="bone bone--title" />
+              <span className="bone bone--sub" />
+              <span className="bone bone--number" />
+              <span className="bone bone--strip" />
+            </div>
+            <div className="class-card-tear" />
+            <div className="class-card-stub">
+              <span className="bone bone--button" />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const LIVE_TEXT = {
+  live: "Live · updates automatically",
+  stale: "Reconnecting · showing the last numbers",
+  offline: "Offline · trying again",
+  connecting: "Connecting…",
+} as const;
+
+function liveMode(state: ClassListState): keyof typeof LIVE_TEXT {
+  if (state.kind === "ready") return state.refreshError !== null ? "stale" : "live";
+  return state.kind === "error" ? "offline" : "connecting";
+}
+
+function Hero({ state }: { state: ClassListState }) {
+  const mode = liveMode(state);
+  const classes = state.kind === "ready" ? state.classes : [];
+  const seatsOpen = classes.reduce((sum, c) => sum + c.availableSeats, 0);
+
+  return (
+    <section className="hero" aria-labelledby="hero-title">
+      <div className="hero-art" aria-hidden="true">
+        <span className="hero-sun" />
+      </div>
+
+      <div className="hero-inner">
+        <div className="hero-eyebrow">
+          <p className="hero-kicker">
+            <span lang="bn">ভর্তি</span> School admission
+          </p>
+          <p className="live-pill" data-mode={mode}>
+            <span className="live-dot" aria-hidden="true" />
+            {LIVE_TEXT[mode]}
+          </p>
+        </div>
+
+        <h1 id="hero-title">
+          <span className="hero-title-line">Find your class.</span>
+          <span className="hero-title-line hero-title-accent">Hold your seat.</span>
+        </h1>
+
+        <p className="hero-lead">
+          Seats go first come, first served. Apply to hold one, then pay the
+          admission fee in time to make it yours.
+        </p>
+
+        {classes.length > 0 && (
+          <dl className="hero-stats">
+            <div>
+              <dt>Seats open now</dt>
+              <dd>
+                <span key={seatsOpen} className="tick">
+                  {seatsOpen}
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt>Classes</dt>
+              <dd>{classes.length}</dd>
+            </div>
+          </dl>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -111,71 +267,67 @@ export default function ClassListPage() {
   const state = useClassList();
 
   return (
-    <section className="class-list">
-      <h1>Classes</h1>
-      <p className="class-list-note">Seat counts update automatically.</p>
+    <>
+      <Hero state={state} />
 
-      {state.kind === "loading" && <p role="status">Loading classes…</p>}
-
-      {state.kind === "error" && (
-        <p className="class-list-error" role="alert">
-          <ErrorText error={state.error} />
-          <span className="class-list-detail">
-            Trying again automatically.
-          </span>
-        </p>
-      )}
-
-      {state.kind === "ready" && (
-        <>
-          {state.refreshError !== null && (
-            <p className="class-list-banner" role="status">
-              <ErrorText error={state.refreshError} />
-              <span className="class-list-detail">
-                Showing the last seat counts received, which may be out of
-                date. Trying again automatically.
-              </span>
+      <section className="classes" aria-labelledby="classes-title">
+        <div className="classes-head">
+          <h2 id="classes-title">Choose a class</h2>
+          {state.kind === "ready" && state.classes.length > 0 && (
+            <p className="classes-count">
+              {state.classes.length} {state.classes.length === 1 ? "class" : "classes"}
             </p>
           )}
+        </div>
 
-          {state.classes.length === 0 ? (
-            <p>No classes are open for admission yet.</p>
-          ) : (
-            <div className="class-list-table-wrap">
-              <table className="class-list-table">
-                <caption className="class-list-hidden">
-                  Classes open for admission
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Class</th>
-                    <th scope="col" className="class-list-num">
-                      Total seats
-                    </th>
-                    <th scope="col" className="class-list-num">
-                      Held
-                    </th>
-                    <th scope="col" className="class-list-num">
-                      Confirmed
-                    </th>
-                    <th scope="col" className="class-list-num">
-                      Available
-                    </th>
-                    <th scope="col">
-                      <span className="class-list-hidden">Apply</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {state.classes.map((schoolClass) => (
-                    <ClassRow key={schoolClass.id} schoolClass={schoolClass} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
-      )}
-    </section>
+        {state.kind === "loading" && <SkeletonGrid />}
+
+        {state.kind === "error" && (
+          <div className="state-card state-card--error" role="alert">
+            <span className="state-card-icon">
+              <AlertIcon />
+            </span>
+            <p className="state-card-body">
+              <ErrorText error={state.error} />
+              <span className="state-card-detail">Trying again automatically.</span>
+            </p>
+          </div>
+        )}
+
+        {state.kind === "ready" && (
+          <>
+            {state.refreshError !== null && (
+              <div className="state-card state-card--warn" role="status">
+                <span className="state-card-icon">
+                  <AlertIcon />
+                </span>
+                <p className="state-card-body">
+                  <ErrorText error={state.refreshError} />
+                  <span className="state-card-detail">
+                    Showing the last seat counts received, which may be out of
+                    date. Trying again automatically.
+                  </span>
+                </p>
+              </div>
+            )}
+
+            {state.classes.length === 0 ? (
+              <div className="state-card state-card--empty">
+                <span className="state-card-icon">
+                  <InboxIcon />
+                </span>
+                <p>No classes are open for admission yet.</p>
+              </div>
+            ) : (
+              <ul className="class-grid">
+                {state.classes.map((schoolClass, index) => (
+                  <ClassCard key={schoolClass.id} schoolClass={schoolClass} index={index} />
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </section>
+    </>
   );
 }

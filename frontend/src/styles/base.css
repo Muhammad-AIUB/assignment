@@ -1,0 +1,199 @@
+/* Reset, page defaults and the few shared building blocks (buttons, badges,
+   visually-hidden text). Anything specific to one screen lives next to that
+   screen's component. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Bangla needs more line height than Latin to keep its marks from colliding. */
+:lang(bn) {
+  line-height: 1.75;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* Bold is the 600 weight we load; a real 700 would be another font file per script. */
+strong,
+b {
+  font-weight: 600;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+/* One focus ring everywhere: gold reads on both the green chrome and the paper. */
+:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+/* ---- Buttons -------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 3rem;
+  padding: 0.6rem 1.25rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    transform 0.18s var(--ease-out),
+    box-shadow 0.18s var(--ease-out),
+    background-color 0.18s;
+}
+
+.btn--primary {
+  background: var(--vermilion);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 10px 20px -10px rgba(210, 56, 31, 0.85);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--vermilion-deep);
+  transform: translateY(-1px);
+}
+
+.btn--primary:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Not clickable (for example a class with no seat left): clearly inert, not just dimmed. */
+.btn:disabled {
+  background: var(--paper-deep);
+  color: var(--ink-faint);
+  box-shadow: inset 0 0 0 1.5px var(--line);
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: none;
+  transition: transform 0.2s var(--ease-out);
+}
+
+.btn:hover:not(:disabled) .btn-icon {
+  transform: translateX(4px);
+}
+
+/* ---- Badges --------------------------------------------------------------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.7rem 0.2rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.badge::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge--open {
+  background: var(--mint-soft);
+  color: var(--forest-800);
+}
+
+.badge--filling {
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+}
+
+.badge--full {
+  background: var(--vermilion-soft);
+  color: var(--danger-ink);
+}
+
+/* ---- Utilities ------------------------------------------------------------ */
+
+/* Present for screen readers, invisible on screen. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Anything that moves stops moving for people who ask their system for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

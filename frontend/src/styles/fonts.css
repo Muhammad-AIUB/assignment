@@ -1,0 +1,19 @@
+/* Self-hosted through npm (@fontsource), so the launch does not depend on a font CDN.
+
+   - Fraunces (variable: weight + optical size): display type and the big seat numbers.
+   - Hind Siliguri: interface and body text. It carries both Latin and Bangla glyphs, so
+     Bangla labels such as the apply button are set in a real Bangla face, not a fallback.
+
+   Import the combined per-weight files (400.css), NOT the per-script ones (latin-400.css,
+   bengali-400.css). Only the combined files declare a unicode-range for each script, which
+   is what lets a browser download the Bangla file (about 73 KB per weight) only when a page
+   really shows Bangla, and the Latin file only for Latin. The per-script files declare no
+   range, so every one of them is downloaded on every visit.
+
+   Three weights are enough: 400 text, 500 medium, 600 for emphasis. Bold (`strong`, `b`) is
+   mapped to 600 in base.css, so a 700 file is never needed. */
+@import "@fontsource-variable/fraunces/opsz.css";
+
+@import "@fontsource/hind-siliguri/400.css";
+@import "@fontsource/hind-siliguri/500.css";
+@import "@fontsource/hind-siliguri/600.css";

@@ -235,4 +235,40 @@ Production code changed only at the OpenAPI layer (no routing, binding, validati
 
 # Frontend decisions
 
-None yet.
+## Session 11 — Frontend scaffold (Vite, React 18, TypeScript, Router, TanStack Query)
+
+Scope: scaffold only. Four placeholder routes (`/`, `/admin/new-class`, `/holds/:holdId`, `/me`), a typed API client, and the query provider. No real screens, no styling, no identity input, no error boundary yet (all in `docs/FRONTEND_SPEC.md`, later sessions).
+
+### Runtime config: `window.__APP_CONFIG__`, not `import.meta.env`
+
+The backend base URL is read from `window.__APP_CONFIG__.apiBaseUrl`, which `frontend/public/config.js` sets (`window.__APP_CONFIG__ = { apiBaseUrl: "http://localhost:8080" }`). `index.html` loads it with a classic `<script src="/config.js">` in `<head>`, ahead of the app's `<script type="module">`. Module scripts are deferred and classic ones block, so the config is guaranteed to exist before any app code runs.
+
+**Why not `import.meta.env.VITE_API_BASE_URL`.** Vite replaces `import.meta.env.*` with literal values *while building*, so the URL ends up inside the JavaScript bundle. Changing the backend address would then mean rebuilding the image, and one image could not move between environments. `docs/FRONTEND_SPEC.md` requires the URL to be resolvable at container runtime. `config.js` lives in `public/`, which Vite copies to `dist/` byte for byte without processing, so whoever starts the container can overwrite that one file and the same bundle talks to a different backend.
+
+**How it is read** (`src/config.ts`, `src/api/client.ts`). The axios instance has a request interceptor that sets `baseURL = getApiBaseUrl()` on every request, so it is never captured at import time or at build time. `getApiBaseUrl()` trims the value and strips trailing slashes, and **throws a descriptive error** if the value is missing or blank (for example `/config.js` was not served, or a static server answered it with the `index.html` fallback, which is a syntax error that leaves `__APP_CONFIG__` unset). Because it throws inside the interceptor, the failure is a rejected request with a readable message that TanStack Query can surface, not a crash at import time that leaves a blank page.
+
+**Checked, not assumed.** A production build with the client imported contains the string `__APP_CONFIG__` and no `localhost:8080` anywhere, and `dist/config.js` is identical to `public/config.js`. In a browser against the dev server, the instance resolved `http://localhost:8080/classes` from `config.js`, then `http://api.example.test:9999/classes` after `window.__APP_CONFIG__` was changed at runtime (trailing slash stripped), and rejected with the error above for a blank value and for a deleted config.
+
+**Not built yet (the frontend Docker session).** Overwriting `config.js` at container start (for example an entrypoint that writes it from an `API_BASE_URL` variable) and serving it with `Cache-Control: no-cache` so a changed value is not hidden by a stale cached copy. `config.js` also holds a plain default for `npm run dev`.
+
+**Correction to the repository-layout note above.** It says a future frontend service could reach the backend as `http://backend:8080`. That is wrong for this app: the API calls are made by the *browser*, not by the frontend container, and a browser on the host cannot resolve the compose service name `backend`. `apiBaseUrl` must be a URL the user's browser can reach, which under `docker compose` is the published port, `http://localhost:8080` (`API_PORT`).
+
+### Open item: the backend has no CORS configuration
+
+`grep -ri cors backend/src` finds nothing, so the API sends no `Access-Control-Allow-*` headers. The frontend is served from its own origin (the Vite dev server on `http://localhost:5173`, later the frontend container) and calls `http://localhost:8080`, which a browser treats as cross-origin and will block. The `X-Student-Id` header and the JSON `Content-Type` also force a preflight `OPTIONS` request on every call. **This session did not change the backend** (out of scope) **and no request to the real API was made**, so nothing here has been tried against it. It has to be settled before the first real screen works, by either of:
+- adding CORS to the API (allow the frontend origin(s); methods including `DELETE`; headers `X-Student-Id` and `Content-Type`), or
+- serving the frontend and the API from one origin behind a reverse proxy. `getApiBaseUrl()` currently rejects an empty string, so that option would also need it to accept a relative base such as `/api`.
+
+### Stack and versions
+
+React 18.3.1 as requested (19 is current). **React Router is `react-router-dom` 7.18.5**, not 8.x: `react-router@8.5.1` declares `react >=19.2.7` and `node >=22.22.0`, which this React 18 / Node 20 project cannot satisfy; 7.x accepts `react >=18` and `node >=20`. Also: `@tanstack/react-query` 5.107.1, `axios` 1.21.1, Vite 8.3.7 with `@vitejs/plugin-react` 6.3.0, TypeScript 7.0.2, `@types/react` 18.3.31 and `@types/react-dom` 18.3.7 (to match React 18). **Every version is pinned exactly** (`--save-exact`) and `package-lock.json` is committed, the same lesson as the backend's floating NuGet versions, which let a clean restore break. Vite 8 needs Node `^20.19 || >=22.12`; `engines` in `package.json` says so (checked on Node 20.20.0). The build runs `tsc -b` before `vite build`; a deliberate type error was confirmed to fail it. `npm audit` reported 0 vulnerabilities at install.
+
+### Structure and what the typed API client contains
+
+`src/config.ts` (runtime config), `src/api/types.ts` (the contract's request/response shapes, copied from `docs/API_CONTRACT.md`), `src/api/client.ts` (the axios instance, `X-Student-Id` header helper), `src/api/endpoints.ts` (one typed function per contract endpoint, each taking an optional `AbortSignal` for TanStack Query cancellation), `src/queryClient.ts`, `src/pages/*` (the four placeholders), `src/App.tsx` (`BrowserRouter` + `Routes`), `src/main.tsx` (`StrictMode` > `QueryClientProvider` > `App`; confirmed in the browser by walking React's fiber tree).
+- The endpoint functions return the response body and **let axios errors propagate**. Turning 4xx bodies into plain-language messages is the error-handling session's job.
+- The student id is an **explicit argument**. Where it is stored (`localStorage` key `studentId`) is the identity session's decision, so nothing here reads `localStorage`.
+- The `QueryClient` uses library defaults. Retry and polling policy (the spec wants 3-5 s polling and instant 4xx messages, which the default retry-with-backoff would delay) is left to the sessions that build those screens.
+- Nothing imports the API layer yet, so Vite **tree-shakes it out of the production bundle** until a screen uses it. That is why the config check above needed a probe build with the client imported.
+- `BrowserRouter` uses real paths, so the static server that eventually serves `dist/` must answer `/holds/...` and `/me` with `index.html`, but must **not** do that for `/config.js` (see above).
+- **There is no catch-all route yet, and an unknown path renders a blank page** (declarative `<Routes>` with no match renders nothing and only logs `No routes matched location`; checked by rendering `/nope` on the server, which gave an empty string). `docs/FRONTEND_SPEC.md` says no error may leave a blank screen, so a `*` route (and the error boundary) belongs in the error-handling session.

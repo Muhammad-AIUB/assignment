@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>School Admission</title>
+    <!--
+      Runtime configuration. This classic (blocking) script must stay ahead of
+      the app bundle below: it sets window.__APP_CONFIG__, which the API client
+      reads. It is a plain file in public/, so it is copied as-is and can be
+      replaced after the build (see docs/ARCHITECTURE.md, "Runtime config").
+    -->
+    <script src="/config.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

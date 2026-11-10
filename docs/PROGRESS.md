@@ -1,6 +1,6 @@
 # Progress
 
-**Status: all backend sessions complete (Sessions 0-10). Frontend: not started.**
+**Status: all backend sessions complete (Sessions 0-10). Frontend: scaffold done (Session 11); no real screens yet.**
 
 ## Backend sessions
 
@@ -82,8 +82,19 @@
   - README and CLAUDE.md updated for the new paths (dotnet commands now run from `backend/`). `CLAUDE.md` is changed on disk but, as instructed, not committed
   - **Found and fixed, unrelated to the move:** six floating package versions (`8.*`, `6.*`) made a fresh restore pick EF Core 8.0.34, whose companion `Abstractions` package is not on nuget.org, so a clean build failed locally and in Docker. A warm cache had hidden it. Pinned to the exact versions the suite had been running on (EF Core, Design and Mvc.Testing 8.0.33, Npgsql EF provider 8.0.11, Configuration.Binder 8.0.2, Swashbuckle 6.9.0)
   - Verified: clean restore and build; full `dotnet test` from `backend/` = 149 unit (1 skipped on purpose) + 249 integration, all passing, same as before the move; `docker compose up --build` from a cold cache: both containers healthy, `/health` 200, `/swagger` 200, create class and hold work, the image contains the pinned versions
-  - Still missing, as before: `docs/BUSINESS_RULES.md` (never created); `docs/FRONTEND_SPEC.md` (frontend sessions)
+  - Still missing, as before: `docs/BUSINESS_RULES.md` (never created). `docs/FRONTEND_SPEC.md` now exists (committed in Session 11)
 
 ## Frontend sessions
 
-- [ ] Not started
+- [x] Session 11: frontend scaffold — done
+  - `frontend/`: Vite 8 + React 18.3.1 + TypeScript, `react-router-dom` 7.18.5, `@tanstack/react-query` 5, `axios`. All versions pinned exactly, `package-lock.json` committed. `frontend/.gitkeep` removed. Run from `frontend/`: `npm install`, `npm run dev` (http://localhost:5173), `npm run build` (typecheck + build), `npm run typecheck`
+  - **Runtime config, not `import.meta.env`:** `public/config.js` sets `window.__APP_CONFIG__ = { apiBaseUrl: "http://localhost:8080" }`, loaded by a `<script>` in `index.html` before the app bundle. The axios instance (`src/api/client.ts`) reads it on every request via `src/config.ts`; a missing or blank value throws a descriptive error. Reasoning in ARCHITECTURE.md (Session 11)
+  - Typed API client: contract types (`src/api/types.ts`), the axios instance, and one function per contract endpoint (`src/api/endpoints.ts`); student id passed as an argument, errors left to propagate
+  - Routing: `BrowserRouter` with empty placeholder pages for `/`, `/admin/new-class`, `/holds/:holdId`, `/me` (a bare heading each, no styling). `StrictMode` > `QueryClientProvider` > `App`
+  - **Verified:** `npm run build` passes, and a deliberate type error was confirmed to fail it. A probe build with the client imported has no `localhost:8080` in the bundle and `dist/config.js` equals `public/config.js`. In a browser against the dev server: all four routes render their placeholder when loaded directly, no console errors, `config.js` loads before the app module, the React tree is `StrictMode > QueryClientProvider > App > BrowserRouter > Routes > page`, and the axios instance follows a runtime change of `window.__APP_CONFIG__` (and rejects with the clear error when it is blank or deleted)
+  - **Not verified / not done:** no request to the real backend was made, and nothing imports the API layer yet (so it is tree-shaken out of the production bundle). No frontend Dockerfile, no compose `frontend` service, no `config.js` override at container start. README not updated. No tests were added (no test runner in scope)
+  - **Open items for the next sessions** (details in ARCHITECTURE.md):
+    - **The backend has no CORS configuration**, so a browser on the frontend's origin cannot call `http://localhost:8080` as things stand. Needs either CORS in the API or a same-origin reverse proxy before the first real screen works
+    - An unknown URL renders a blank page (no `*` route); the error boundary is also still to do
+    - Correction: a browser-side app must use a browser-reachable `apiBaseUrl` (`http://localhost:8080` under compose), not `http://backend:8080` as the repository-layout note suggested
+  - Next: identity input (`studentId` in `localStorage`) and the class list screen

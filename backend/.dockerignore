@@ -10,9 +10,8 @@
 .claude/
 *.user
 
-# Not needed to build the Api image (it builds src/ only).
+# Not needed to build the backend image (it builds src/ only). The build context is the backend/ folder.
 tests/
-docs/
 .config/
 *.md
 

@@ -1,6 +1,9 @@
 # Architecture Decisions
 
 Append-only decision log. One entry per decision: date, decision, reason.
+Backend decisions come first and frontend decisions last, each under its own heading.
+
+# Backend decisions
 
 ## Session 1 — Database layer
 
@@ -219,3 +222,17 @@ Production code changed only at the OpenAPI layer (no routing, binding, validati
 **ASSUMPTIONS.md.** `docs/BUSINESS_RULES.md` was never created, so there was no "Decisions not specified in the brief" section to consolidate. `ASSUMPTIONS.md` is compiled from the decisions recorded in this log and in `PROGRESS.md`, each re-checked against the code or a test (one was wrong in the first draft: the 200-character name limit applies to the name as sent, before trimming). The assignment's required format was not available in the repository, so it is a numbered list grouped by topic (identity and input, seats and holds, errors, operation) plus out-of-scope and known limitations; reformatting is mechanical.
 
 **Known and left as is.** `expiresAt` in the response that creates a hold carries 7 fractional digits (the in-memory 100 ns tick) while later reads carry 6 (Postgres microseconds); under a microsecond apart, noted as assumption 23. The skipped trailing-newline test from Session 8 stays skipped.
+
+## Repository layout — backend/ and frontend/
+
+- **One repository, two applications.** `backend/` holds the whole .NET solution (`src/Api`, `src/Domain`, `src/Infrastructure`, `tests/UnitTests`, `tests/IntegrationTests`, `SchoolAdmission.sln`, `global.json`, the `dotnet-ef` tool manifest, `Dockerfile`, `.dockerignore`); `frontend/` is reserved for the web client. `docs/` (the contract both sides follow, plus this log and the progress log), `docker-compose.yml`, `.env.example`, `README.md`, `ASSUMPTIONS.md` and `CLAUDE.md` stay at the root. Files were moved with `git mv`, so history follows them. This supersedes Session 7's "Dockerfile lives at `src/Api/Dockerfile`, build context is the repo root" and every earlier path written without the `backend/` prefix.
+- **.NET configuration moves with the solution.** `global.json` and `.config/dotnet-tools.json` live in `backend/` because only dotnet commands use them, and those are now run from `backend/` (README, CLAUDE.md). Run from the repo root, dotnet would not see the SDK pin or the `dotnet-ef` manifest.
+- **Docker build context is `backend/`.** The Dockerfile only changed in its header comment: its `COPY src/...` lines stay valid because `backend/` has the same internal layout the old root had. `.dockerignore` moved with it, since Docker reads it from the context root.
+- **Compose service renamed `api` -> `backend`** (image `school-admission-backend`) so service names match the folders and a future `frontend` service can reach it as `http://backend:8080`. For users nothing changes: host port (`API_PORT`, default 8080), environment variables, volume and URLs are the same. The frontend service is only a comment for now, because there is no `frontend/Dockerfile` and `up --build` would fail with it.
+- **`frontend/` holds only a `.gitkeep`** so the folder exists in git. No `package.json`, Dockerfile or `public/config.js` was created; that is the frontend sessions' scope. `docs/FRONTEND_SPEC.md` and `docs/BUSINESS_RULES.md`, both listed in CLAUDE.md's structure, do not exist yet.
+- **Floating package versions pinned (found while verifying the move).** Six references used floating ranges (`8.*`, `6.*`). Clearing `obj/` forces a fresh restore, as does any clone or Docker build, and it now selected EF Core 8.0.34. nuget.org has no `Microsoft.EntityFrameworkCore.Abstractions` 8.0.34 (it stops at 8.0.33), so restore failed with NU1605 and NU1603 (the latter substituting Abstractions 9.0.0 into an 8.0 app), locally and in the image build. A warm package cache had hidden this. The references are now exact, taken from the last working image's `Api.deps.json`: EF Core, EF Core Design and Mvc.Testing 8.0.33, Npgsql EF provider 8.0.11, Configuration.Binder 8.0.2, Swashbuckle 6.9.0. When bumping, move the EF family together and only to a version whose companion packages exist.
+- **Verified from the new layout.** Clean restore and build; full `dotnet test` from `backend/` unchanged at 149 unit (1 skipped) + 249 integration, including the two-process tests (their search for `src/Api/Api.csproj` walks up from the test output and now stops at `backend/`); `docker compose up --build` from a cold cache with both containers healthy, `/health` and `/swagger` 200, and the pinned versions inside the image.
+
+# Frontend decisions
+
+None yet.

@@ -104,6 +104,7 @@ You need the .NET 8 SDK and a running Docker. The integration tests start their 
 time. The first run pulls the `postgres:16` image.
 
 ```bash
+cd backend                           # the .NET solution lives here; the commands below run from this folder
 dotnet test                          # everything
 dotnet test tests/UnitTests          # unit tests only; no Docker needed
 dotnet test tests/IntegrationTests   # integration tests against real PostgreSQL
@@ -123,10 +124,11 @@ restart tests start real API processes and are the slowest.
 ## Run without Docker (optional)
 
 Needs the .NET 8 SDK and a PostgreSQL reachable at `localhost:5432` with database `school_admission` and user/password
-`postgres`/`postgres` (the Development settings in `src/Api/appsettings.Development.json`). For example:
+`postgres`/`postgres` (the Development settings in `backend/src/Api/appsettings.Development.json`). For example:
 
 ```bash
 docker run -d --name school-pg -p 5432:5432 -e POSTGRES_DB=school_admission -e POSTGRES_PASSWORD=postgres postgres:16-alpine
+cd backend
 dotnet run --project src/Api
 ```
 
@@ -136,17 +138,20 @@ connection with the `ConnectionStrings__Postgres` environment variable.
 ## Project layout
 
 ```
-src/
-  Api/             controllers, DTOs, services, middleware, background expiry job, Program.cs, Dockerfile
-  Domain/          entities and the hold-status rule
-  Infrastructure/  DbContext, EF configuration, migrations, options
-tests/
-  UnitTests/         no database
-  IntegrationTests/  real PostgreSQL via Testcontainers
+backend/
+  src/Api/             controllers, DTOs, services, middleware, background expiry job, Program.cs
+  src/Domain/          entities and the hold-status rule
+  src/Infrastructure/  DbContext, EF configuration, migrations, options
+  tests/UnitTests/         no database
+  tests/IntegrationTests/  real PostgreSQL via Testcontainers
+  Dockerfile           the backend image
+  SchoolAdmission.sln
+frontend/              not started yet
 docs/
-  API_CONTRACT.md    the frozen request/response contract
-  ARCHITECTURE.md    design decisions, session by session
-  PROGRESS.md        build log
-docker-compose.yml   PostgreSQL + API
-ASSUMPTIONS.md       decisions the brief did not specify
+  API_CONTRACT.md      the frozen request/response contract
+  ARCHITECTURE.md      design decisions: backend and frontend, under separate headings
+  PROGRESS.md          build log: backend sessions and frontend sessions
+docker-compose.yml     PostgreSQL + backend (the frontend joins it later)
+.env.example           every setting, with its default
+ASSUMPTIONS.md         decisions the brief did not specify
 ```

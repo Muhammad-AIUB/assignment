@@ -1,6 +1,8 @@
 # Progress
 
-**Status: all backend sessions complete (Sessions 0-10).**
+**Status: all backend sessions complete (Sessions 0-10). Frontend: not started.**
+
+## Backend sessions
 
 - [x] Session 0: scaffolding — done
 - [x] Session 1: database layer — done
@@ -74,3 +76,14 @@
   - **Tests added: 60 integration, no unit.** `SwaggerDocumentTests` (written first; 24 of its 57 rows failed before the fix), `ContractWalkthroughTests` (1), `RestartPersistenceTests` (2: state, rules and the held hold's unchanged expiry survive killing the API and starting a new process; a hold that expires while the API is down, with the sweep off, is EXPIRED and its seat free after the restart). `ApiProcess.StartAsync` gained an optional environment dictionary. Checked against deliberate breaks, each restored from a backup and diffed: an extra field in a response DTO fails `ContractWalkthroughTests` and the matching `SwaggerDocumentTests` row (only that row); a second process pointed at an empty database fails the restart test
   - Result: **149 unit (1 skipped on purpose) + 249 integration, all passing** in one full `dotnet test` run (exit 0; the only warning is the existing obsolete `PostgreSqlBuilder()` constructor in `ApiFactory`)
   - **Not done / for the reader:** the assignment's own format for the assumptions list was not in the repository, so `ASSUMPTIONS.md` is a numbered list grouped by topic and is compiled from ARCHITECTURE.md rather than from a BUSINESS_RULES.md that does not exist. Known and left alone: `expiresAt` has 7 fractional digits when a hold is created and 6 on later reads (under a microsecond apart, assumption 23); the student-id pattern accepts a trailing newline (unreachable over HTTP, one skipped unit test, fix is `\z`)
+- [x] Repository restructure into `backend/` and `frontend/` (after Session 10) — done
+  - Moved with `git mv` (history follows): `src/`, `tests/`, `SchoolAdmission.sln`, `global.json`, `.config/` (the `dotnet-ef` tool manifest) and `.dockerignore` into `backend/`; `src/Api/Dockerfile` is now `backend/Dockerfile`. `docs/`, `docker-compose.yml`, `.env.example`, `README.md`, `ASSUMPTIONS.md` and `CLAUDE.md` stay at the root. `frontend/` exists with only a `.gitkeep`; no frontend code yet
+  - `docker-compose.yml`: build context `./backend`, service renamed `api` -> `backend` (image `school-admission-backend`), a comment marks where the `frontend` service goes. Host port, environment variables, volume and URLs are unchanged: the API is still on http://localhost:8080
+  - README and CLAUDE.md updated for the new paths (dotnet commands now run from `backend/`). `CLAUDE.md` is changed on disk but, as instructed, not committed
+  - **Found and fixed, unrelated to the move:** six floating package versions (`8.*`, `6.*`) made a fresh restore pick EF Core 8.0.34, whose companion `Abstractions` package is not on nuget.org, so a clean build failed locally and in Docker. A warm cache had hidden it. Pinned to the exact versions the suite had been running on (EF Core, Design and Mvc.Testing 8.0.33, Npgsql EF provider 8.0.11, Configuration.Binder 8.0.2, Swashbuckle 6.9.0)
+  - Verified: clean restore and build; full `dotnet test` from `backend/` = 149 unit (1 skipped on purpose) + 249 integration, all passing, same as before the move; `docker compose up --build` from a cold cache: both containers healthy, `/health` 200, `/swagger` 200, create class and hold work, the image contains the pinned versions
+  - Still missing, as before: `docs/BUSINESS_RULES.md` (never created); `docs/FRONTEND_SPEC.md` (frontend sessions)
+
+## Frontend sessions
+
+- [ ] Not started

@@ -31,11 +31,11 @@ services:
     # To inspect the data:  docker compose exec postgres psql -U postgres -d school_admission
     # To reach it from the host instead, add:  ports: ["5432:5432"]
 
-  api:
+  backend:
     build:
-      context: .                     # repo root, so the Dockerfile can see src/Domain, src/Infrastructure and src/Api
-      dockerfile: src/Api/Dockerfile
-    image: school-admission-api
+      context: ./backend             # backend/ holds src/Domain, src/Infrastructure and src/Api, which the Dockerfile needs
+      dockerfile: Dockerfile
+    image: school-admission-backend
     restart: unless-stopped
     depends_on:
       postgres:
@@ -49,6 +49,8 @@ services:
       HOLD_EXPIRY_SWEEP_INTERVAL_SECONDS: ${HOLD_EXPIRY_SWEEP_INTERVAL_SECONDS:-5}
     ports:
       - "${API_PORT:-8080}:8080"
+
+  # frontend: added with the frontend sessions (there is no frontend/Dockerfile yet).
 
 volumes:
   postgres_data:

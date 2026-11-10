@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 #
-# School Admission API image.
-# Build context is the REPOSITORY ROOT (not src/Api), because Api references Domain and Infrastructure:
-#   docker build -f src/Api/Dockerfile -t school-admission-api .
+# School Admission backend image.
+# Build context is the backend/ folder (not src/Api), because Api references Domain and Infrastructure:
+#   docker build -t school-admission-backend backend      (run from the repository root)
 
 # ---- build stage: full SDK, never shipped ------------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build

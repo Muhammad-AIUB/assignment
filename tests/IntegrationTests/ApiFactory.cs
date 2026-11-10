@@ -11,6 +11,8 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly PostgreSqlContainer _pg = new PostgreSqlBuilder().WithImage("postgres:16").Build();
 
+    public string ConnectionString => _pg.GetConnectionString();
+
     public async Task InitializeAsync() => await _pg.StartAsync();
 
     public new async Task DisposeAsync()

@@ -36,7 +36,9 @@ public sealed class ApiProcess : IAsyncDisposable
     /// <summary>The last lines the process wrote (Serilog console), for failure messages.</summary>
     public string OutputTail => string.Join(Environment.NewLine, _tail);
 
-    public static async Task<ApiProcess> StartAsync(string name, string connectionString)
+    /// <param name="environment">Extra environment variables for this process (for example a short HOLD_DURATION_SECONDS).</param>
+    public static async Task<ApiProcess> StartAsync(
+        string name, string connectionString, IReadOnlyDictionary<string, string>? environment = null)
     {
         var dll = FindApiDll();
         var port = FreePort();
@@ -59,6 +61,8 @@ public sealed class ApiProcess : IAsyncDisposable
         psi.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
         psi.Environment.Remove("ASPNETCORE_HTTP_PORTS");
         psi.Environment.Remove("ASPNETCORE_HTTPS_PORTS");
+        foreach (var (key, value) in environment ?? new Dictionary<string, string>())
+            psi.Environment[key] = value;
 
         var process = new Process { StartInfo = psi };
         var api = new ApiProcess(name, port, process);

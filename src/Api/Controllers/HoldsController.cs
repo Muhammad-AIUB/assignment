@@ -12,6 +12,18 @@ public partial class HoldsController(IHoldService holds) : ControllerBase
     [GeneratedRegex(@"^[0-9]{17}$")]
     private static partial Regex StudentIdPattern();
 
+    /// <summary>Hold one seat in a class for the calling student.</summary>
+    /// <remarks>
+    /// First come, first served. The seat is claimed atomically, so a class is never oversold however many students ask
+    /// at the same moment. The hold lasts HOLD_DURATION_SECONDS (default 600): confirm it before expiresAt or the seat
+    /// is released for the next student.
+    /// </remarks>
+    /// <param name="classId">The class to hold a seat in.</param>
+    /// <param name="studentId">The student's 17-digit registration number.</param>
+    /// <response code="201">The seat is held until expiresAt.</response>
+    /// <response code="400">INVALID_STUDENT_ID: X-Student-Id is missing or is not exactly 17 digits.</response>
+    /// <response code="404">CLASS_NOT_FOUND: no class has this id.</response>
+    /// <response code="409">NO_SEAT_AVAILABLE: every seat is held or confirmed. DUPLICATE_ACTIVE_HOLD: the student already has an active hold or a confirmed admission in this class.</response>
     [HttpPost("classes/{classId}/holds")]
     [ProducesResponseType<HoldResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType<ErrorResponse>(StatusCodes.Status400BadRequest)]
@@ -35,6 +47,14 @@ public partial class HoldsController(IHoldService holds) : ControllerBase
         };
     }
 
+    /// <summary>Get a hold and its current status.</summary>
+    /// <remarks>
+    /// status is HELD, CONFIRMED, EXPIRED or CANCELLED. A HELD hold past expiresAt is reported as EXPIRED straight
+    /// away, without waiting for the background sweep. No X-Student-Id is needed.
+    /// </remarks>
+    /// <param name="holdId">A hold id as returned by POST /classes/{classId}/holds.</param>
+    /// <response code="200">The hold's class, status and expiry.</response>
+    /// <response code="404">HOLD_NOT_FOUND: no hold has this id.</response>
     [HttpGet("holds/{holdId}")]
     [ProducesResponseType<HoldStatusResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ErrorResponse>(StatusCodes.Status404NotFound)]
@@ -44,6 +64,17 @@ public partial class HoldsController(IHoldService holds) : ControllerBase
         return hold is null ? HoldNotFound(holdId) : Ok(hold);
     }
 
+    /// <summary>Confirm a hold, turning the held seat into a confirmed admission.</summary>
+    /// <remarks>
+    /// Idempotent: confirming a hold its owner has already confirmed returns 200 again and does not count the seat a
+    /// second time.
+    /// </remarks>
+    /// <param name="holdId">The hold to confirm.</param>
+    /// <param name="studentId">The student's 17-digit registration number; must be the hold's owner.</param>
+    /// <response code="200">The hold is CONFIRMED (this includes a repeat confirm by the owner).</response>
+    /// <response code="400">INVALID_STUDENT_ID: X-Student-Id is missing or is not exactly 17 digits.</response>
+    /// <response code="404">HOLD_NOT_FOUND: no hold has this id.</response>
+    /// <response code="409">NOT_HOLD_OWNER: the hold belongs to another student. HOLD_EXPIRED: it expired before it was confirmed. HOLD_CANCELLED: it was cancelled.</response>
     [HttpPost("holds/{holdId}/confirm")]
     [ProducesResponseType<ConfirmHoldResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ErrorResponse>(StatusCodes.Status400BadRequest)]
@@ -62,6 +93,14 @@ public partial class HoldsController(IHoldService holds) : ControllerBase
             : HoldActionFailure(outcome, holdId);
     }
 
+    /// <summary>Cancel a hold and release its seat immediately.</summary>
+    /// <remarks>Only the owner can cancel, and only a hold that is still HELD (not expired, confirmed or already cancelled).</remarks>
+    /// <param name="holdId">The hold to cancel.</param>
+    /// <param name="studentId">The student's 17-digit registration number; must be the hold's owner.</param>
+    /// <response code="204">The hold is CANCELLED and the seat is available to other students again.</response>
+    /// <response code="400">INVALID_STUDENT_ID: X-Student-Id is missing or is not exactly 17 digits.</response>
+    /// <response code="404">HOLD_NOT_FOUND: no hold has this id.</response>
+    /// <response code="409">NOT_HOLD_OWNER: the hold belongs to another student. HOLD_EXPIRED, HOLD_CANCELLED or HOLD_ALREADY_CONFIRMED: the hold is no longer HELD.</response>
     [HttpDelete("holds/{holdId}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType<ErrorResponse>(StatusCodes.Status400BadRequest)]
@@ -78,6 +117,11 @@ public partial class HoldsController(IHoldService holds) : ControllerBase
         return outcome == HoldActionOutcome.Succeeded ? NoContent() : HoldActionFailure(outcome, holdId);
     }
 
+    /// <summary>List the calling student's holds, newest first.</summary>
+    /// <remarks>Holds of every status (HELD, CONFIRMED, EXPIRED, CANCELLED) are included. A student with no holds gets an empty list.</remarks>
+    /// <param name="studentId">The student's 17-digit registration number.</param>
+    /// <response code="200">The student's holds, each with its class name, status and expiry.</response>
+    /// <response code="400">INVALID_STUDENT_ID: X-Student-Id is missing or is not exactly 17 digits.</response>
     [HttpGet("me/holds")]
     [ProducesResponseType<IReadOnlyList<MyHoldResponse>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ErrorResponse>(StatusCodes.Status400BadRequest)]

@@ -9,6 +9,10 @@ namespace Api.Controllers;
 [Route("health")]
 public class HealthController(IHealthService health) : ControllerBase
 {
+    /// <summary>Check that the API and its database are up.</summary>
+    /// <remarks>An operational probe outside the student-facing contract; it takes no X-Student-Id.</remarks>
+    /// <response code="200">The API is running and the database answered.</response>
+    /// <response code="503">DATABASE_UNAVAILABLE: the database did not answer within 3 seconds.</response>
     [HttpGet]
     [ProducesResponseType<HealthResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ErrorResponse>(StatusCodes.Status503ServiceUnavailable)]

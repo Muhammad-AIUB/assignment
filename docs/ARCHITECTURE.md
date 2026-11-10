@@ -334,3 +334,30 @@ A real `<table>` (column headers, row header = class name, caption and the apply
 ### Not done, on purpose
 - The real backend with data, from a browser: blocked by the missing CORS configuration (Session 11 open item). The failure case was exercised against it (the page shows the error), everything else against a throwaway mock.
 - No automated tests: no frontend test runner exists, and adding one is outside this session.
+
+## Session 14 — Apply flow (`POST /classes/{classId}/holds` from the class list)
+
+Scope: the apply button only. No application status screen, no central error mapping (both later sessions).
+
+### One mutation hook, one instance per row
+`useApplyForClass()` (`src/api/useApplyForClass.ts`) wraps `createHold` in `useMutation` and owns the three side effects: navigate on 201, expose the failure, invalidate the class list. It is called in `ClassRow`, not once in the page, so every class has its own `isPending` and `error`. A failure on class A does not clear or replace a message on class B, and only the clicked button is disabled. The hook-level callbacks (not per-call `mutate(..., { onSuccess })` ones) are used so the navigation still happens if the row re-renders or unmounts while the request is in flight.
+
+### Success navigates, failure never does
+201: `navigate("/holds/" + encodeURIComponent(hold.holdId))`, using the id the backend returned and nothing else. Any failure (409 no seat, 409 already applied, 404, 400, network) leaves the student on the list. `retry` stays at the mutation default of 0: re-sending a POST that creates a seat hold is not something to do behind the user's back (the backend would answer a repeat with 409 anyway).
+
+### The message is the backend's, not ours
+The inline text is `error.response.data.message` verbatim. There is deliberately no code-to-text table here: the contract's codes in `FRONTEND_SPEC.md` (`SEAT_UNAVAILABLE`, `DUPLICATE_APPLICATION`) are not the ones the backend sends (`NO_SEAT_AVAILABLE`, `DUPLICATE_ACTIVE_HOLD`), so a table written from the spec would silently never match. The backend's messages are English; if Bangla is wanted, the error-handling session should map the real codes. With no backend message (server unreachable, a non-JSON failure) the row shows the spec's generic Bangla line plus the detail the screen already computes. The message sits in its own `<tr>` under the class so it is clear which class it is about; it stays until that row's next attempt (`mutate` clears the error when a new request starts).
+
+### Invalidate on success *and* failure
+`onSettled` invalidates `["classes"]`. After a failed apply the list that was on screen is evidently out of date (typically "no seat" against a row that still showed seats), so refreshing it at once turns the row to Full instead of leaving a live button for up to 4 s. Seen in the browser: 409, then `GET /classes` immediately, then the row flipped to Full 561 ms later.
+
+**What happens on success, and why it is a one-request flash.** `useClassList` passes TanStack's abort `signal` to the request. When the apply succeeds the page navigates away, which unmounts the only observer of `["classes"]`; TanStack then cancels the in-flight refetch that the invalidation started and reverts to the previous data, keeping the query marked invalid. So nothing is lost (the list refetches when the student returns; the default `staleTime` of 0 would do that anyway) but for one request the list shows the old seat count (seen: 5 available, then 4). Not changed, because both fixes are bigger than this session: awaiting the invalidation before navigating (costs one round trip of latency on every apply), or writing the new counts into the cache optimistically (a guess the server then corrects). Not passing `signal` in `useClassList` would also let the refetch finish in the background, but that hook belongs to the polling session and the cancellation is what stops requests for a page nobody is looking at.
+
+### Layout of the message row
+A full-width cell (`colSpan={6}`) is the row's last child, so it would inherit the pinned-last-column rule (`position: sticky; right: 0; background: Canvas`); `td.class-list-apply-error-cell` has the same specificity, comes later and resets both. The text box itself is `position: sticky; left: 0` with `max-width: calc(100vw - 3.5rem)` and normal wrapping, so on a narrow screen, where the table scrolls sideways inside its wrapper, the message stays at the left edge of the visible area. Checked at 375 px at both scroll extremes.
+
+### Student id
+The button does not check for a registration number. With none entered no `X-Student-Id` header is sent (Session 12) and the backend answers 400 with its own message, which is then shown like any other failure. Pre-disabling the button (or prompting for the number) is a UX choice for the styling or error-handling session.
+
+### How it was checked, and what that does not cover
+Against a real backend started as a separate compose project (`-p apply-verify`, port 8199, its own volume, removed afterwards), so the dev database was not written to. The backend has no committed CORS yet, so the page was served by a throwaway Vite config outside the repo (a same-origin `config.js` and a proxy of `/classes`, `/holds`, `/me`). That means the cross-origin browser-to-`:8080` path is **not** covered. Two environment notes: with the Browser pane hidden, page timers are throttled, so waits in injected scripts must not use `setTimeout`; and port 8099 was already taken by another session's API instance, so the verification stack uses 8199.

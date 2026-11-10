@@ -90,6 +90,37 @@
   font-size: 0.875rem;
 }
 
+/* The message of a failed apply, in a full-width row under its class. The cell
+   is the row's last child, so it must opt out of the pinned-column rule above
+   (same specificity, defined later). */
+.class-list-table td.class-list-apply-error-cell {
+  position: static;
+  padding-top: 0.25rem;
+  background: transparent;
+}
+
+/* On a narrow screen the table scrolls sideways; pin the message to the left
+   edge of the visible area, and let it wrap there, so it is never scrolled out
+   of sight. The width follows the viewport (page padding + cell padding). */
+.class-list-apply-error {
+  position: sticky;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: calc(100vw - 3.5rem);
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #fda29b;
+  border-radius: 4px;
+  background: #fef3f2;
+  color: #b42318;
+  font-size: 0.875rem;
+  white-space: normal;
+}
+
 /* Present for screen readers (table caption, the apply column header). */
 .class-list-hidden {
   position: absolute;

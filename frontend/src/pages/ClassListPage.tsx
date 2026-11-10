@@ -1,4 +1,5 @@
 import axios from "axios";
+import { useApplyForClass } from "../api/useApplyForClass";
 import { useClassList } from "../api/useClassList";
 import type { ApiErrorBody, SchoolClass } from "../api/types";
 import "./ClassListPage.css";
@@ -6,20 +7,29 @@ import "./ClassListPage.css";
 /** Fallback wording from docs/FRONTEND_SPEC.md ("Error handling"). */
 const GENERIC_ERROR = "কিছু একটা ভুল হয়েছে, আবার চেষ্টা করুন";
 
+/** The `message` of the backend's `{ error, message }` body, if the error has one. */
+function backendMessage(error: unknown): string | null {
+  if (axios.isAxiosError<ApiErrorBody>(error)) {
+    const message = error.response?.data?.message;
+    if (typeof message === "string" && message.trim() !== "") {
+      return message;
+    }
+  }
+  return null;
+}
+
 /**
  * One plain-language line saying what went wrong, or null when there is nothing
  * more to add than the generic message. Prefers the backend's own `message`.
  * Local to this screen for now; the error-handling session centralizes it.
  */
 function errorDetail(error: unknown): string | null {
-  if (axios.isAxiosError<ApiErrorBody>(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === "string" && message.trim() !== "") {
-      return message;
-    }
-    if (!error.response) {
-      return "Could not reach the server.";
-    }
+  const message = backendMessage(error);
+  if (message !== null) {
+    return message;
+  }
+  if (axios.isAxiosError(error) && !error.response) {
+    return "Could not reach the server.";
   }
   if (error instanceof Error && error.message.trim() !== "") {
     return error.message;
@@ -37,35 +47,58 @@ function ErrorText({ error }: { error: unknown }) {
   );
 }
 
-function handleApply(schoolClass: SchoolClass) {
-  // TODO(Session F4, apply flow): call createHold(schoolClass.id) and go to the
-  // application status screen. Intentionally not wired to the API yet.
-  console.log("TODO(Session F4): apply for class", schoolClass.id);
+/**
+ * Why an apply failed, in the backend's own words (for example the 409 for no
+ * free seat, or for an application the student already has in this class). When
+ * there is no backend message (server unreachable, an unexpected failure) it
+ * falls back to the generic line plus whatever detail there is.
+ */
+function ApplyErrorText({ error }: { error: unknown }) {
+  const message = backendMessage(error);
+  if (message !== null) {
+    return <span>{message}</span>;
+  }
+  return <ErrorText error={error} />;
 }
 
 function ClassRow({ schoolClass }: { schoolClass: SchoolClass }) {
+  const apply = useApplyForClass();
   const full = schoolClass.availableSeats <= 0;
   return (
-    <tr>
-      <th scope="row">{schoolClass.name}</th>
-      <td className="class-list-num">{schoolClass.totalSeats}</td>
-      <td className="class-list-num">{schoolClass.heldSeats}</td>
-      <td className="class-list-num">{schoolClass.confirmedSeats}</td>
-      <td className="class-list-num">
-        {schoolClass.availableSeats}
-        {full && <span className="class-list-full">Full</span>}
-      </td>
-      <td>
-        <button
-          type="button"
-          disabled={full}
-          aria-label={`আবেদন করুন: ${schoolClass.name}`}
-          onClick={() => handleApply(schoolClass)}
-        >
-          আবেদন করুন
-        </button>
-      </td>
-    </tr>
+    <>
+      <tr>
+        <th scope="row">{schoolClass.name}</th>
+        <td className="class-list-num">{schoolClass.totalSeats}</td>
+        <td className="class-list-num">{schoolClass.heldSeats}</td>
+        <td className="class-list-num">{schoolClass.confirmedSeats}</td>
+        <td className="class-list-num">
+          {schoolClass.availableSeats}
+          {full && <span className="class-list-full">Full</span>}
+        </td>
+        <td>
+          {/* Disabled while the request is in flight so a double click cannot
+              send two applications. On success the hook navigates away. */}
+          <button
+            type="button"
+            disabled={full || apply.isPending}
+            aria-busy={apply.isPending}
+            aria-label={`আবেদন করুন: ${schoolClass.name}`}
+            onClick={() => apply.mutate(schoolClass.id)}
+          >
+            আবেদন করুন
+          </button>
+        </td>
+      </tr>
+      {apply.isError && (
+        <tr>
+          <td colSpan={6} className="class-list-apply-error-cell">
+            <p className="class-list-apply-error" role="alert">
+              <ApplyErrorText error={apply.error} />
+            </p>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 

@@ -30,13 +30,28 @@ public class HoldService(AppDbContext db, TimeProvider clock, IOptions<HoldOptio
         //    count as the student's "active" hold. Idempotent and safe under concurrency: a
         //    row can only flip HELD -> EXPIRED once, and the counter is decremented by exactly
         //    the number of rows this statement flipped.
+        //
+        //    Deadlock-safe. Many requests can reach the same class together and all try to clean up the
+        //    same rows, and a row lock is held until commit. So `due` locks the rows in one fixed order
+        //    (Id), which rules out two requests holding each other's next row, and the class row is only
+        //    touched after `released` has counted every flipped row, so it is never locked while some
+        //    hold rows are still to be locked.
         await ExecuteAsync(dbTx, """
-            WITH expired AS (
-                UPDATE holds SET "Status" = 'Expired'
+            WITH due AS MATERIALIZED (
+                SELECT "Id" FROM holds
                 WHERE "ClassId" = @classId AND "Status" = 'Held' AND "ExpiresAt" <= @now
-                RETURNING 1)
-            UPDATE classes SET "HeldSeats" = "HeldSeats" - (SELECT count(*) FROM expired)
-            WHERE "Id" = @classId AND EXISTS (SELECT 1 FROM expired)
+                ORDER BY "Id"
+                FOR UPDATE),
+            expired AS (
+                UPDATE holds h SET "Status" = 'Expired'
+                FROM due
+                WHERE h."Id" = due."Id" AND h."Status" = 'Held' AND h."ExpiresAt" <= @now
+                RETURNING 1),
+            released AS (
+                SELECT count(*) AS n FROM expired)
+            UPDATE classes SET "HeldSeats" = "HeldSeats" - released.n
+            FROM released
+            WHERE "Id" = @classId AND released.n > 0
             """, ct, ("classId", classId), ("now", now));
 
         // 2. Atomic seat claim (rules 1). The conditional UPDATE both checks and reserves in one

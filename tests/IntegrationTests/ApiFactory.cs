@@ -22,6 +22,11 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:Postgres", _pg.GetConnectionString());
+
+        // The background expiry sweep stays off here so tests that deliberately leave expired HELD rows
+        // unswept (to prove lazy expiry) are not changed under them. The sweeper tests call the sweeper
+        // directly, and the one worker test switches the worker on for its own host.
+        builder.UseSetting("HOLD_EXPIRY_SWEEP_ENABLED", "false");
     }
 
     public async Task WithDbAsync(Func<AppDbContext, Task> action)

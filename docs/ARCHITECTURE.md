@@ -81,3 +81,41 @@ RETURNING "Id"
 - `X-Student-Id` is validated (400 `INVALID_STUDENT_ID`) before any lookup on confirm, delete and `/me/holds`, reusing one controller helper that `POST /classes/{id}/holds` now also uses. `GET /holds/{id}` takes no header (per the contract) and is readable by anyone who knows the id.
 - `GET /me/holds` returns the student's holds of every status (the contract's four statuses all apply), newest first (`CreatedAt` desc, then `Id`), joined to the class name; an empty list is `[]`. Served by `ix_holds_student`.
 - Response bodies are exactly the contract's fields; `GET /holds/{id}` does not include `studentId`.
+
+## Session 5 — Background expiry sweep, GET /health
+
+**Note:** `docs/BUSINESS_RULES.md` still does not exist; nothing in this session needed a business rule beyond Sessions 2-4.
+
+**The expiry sweep is housekeeping, not correctness.** A hold past `ExpiresAt` is already EXPIRED as far as the API is concerned, by computed logic that needs no sweep: `Hold.EffectiveStatus` (GET /holds, GET /me/holds), the expired-excluding counts in GET /classes, and the per-class cleanup at the top of the seat claim in POST /classes/{id}/holds. The sweep only makes the stored rows and the `HeldSeats` counters match, for data cleanliness. This is stated in code comments on `HoldExpiryWorker` and `HoldExpirySweeper`, and a test (`Sweep_changes_nothing_the_api_reports`) checks the API gives identical answers before and after a sweep.
+
+**Shape.** `IHoldExpirySweeper`/`HoldExpirySweeper` (Api/Services) does one sweep and returns how many holds it expired. `HoldExpiryWorker` (Api/BackgroundServices, a `BackgroundService`, so an `IHostedService`) calls it from a `PeriodicTimer`, once immediately on start and then every interval, in a fresh DI scope per tick (the sweeper owns a scoped `DbContext`). Config, read like `HOLD_DURATION_SECONDS`: `HOLD_EXPIRY_SWEEP_INTERVAL_SECONDS` (default 5, must be > 0, validated on startup) and `HOLD_EXPIRY_SWEEP_ENABLED` (default true). A failed sweep is logged as a warning and retried next tick; it never stops the host. The shared test factory sets `HOLD_EXPIRY_SWEEP_ENABLED=false` so tests that deliberately leave expired rows unswept (to prove lazy expiry) are not changed under them; the sweeper tests call the sweeper directly and one test turns the worker on for its own host.
+
+**The sweep statement** (one SQL statement per batch of 500, in a READ COMMITTED transaction; the `(Status, ExpiresAt)` index from Session 1 serves it):
+
+```sql
+WITH due AS (SELECT "Id" FROM holds WHERE "Status" = 'Held' AND "ExpiresAt" <= @now
+             ORDER BY "ExpiresAt" LIMIT @batch FOR UPDATE SKIP LOCKED),
+     expired AS (UPDATE holds h SET "Status" = 'Expired' FROM due
+                 WHERE h."Id" = due."Id" AND h."Status" = 'Held' AND h."ExpiresAt" <= @now
+                 RETURNING h."ClassId"),
+     per_class AS (SELECT "ClassId", count(*) AS n FROM expired GROUP BY "ClassId"),
+     released AS (UPDATE classes c SET "HeldSeats" = c."HeldSeats" - per_class.n
+                  FROM per_class WHERE c."Id" = per_class."ClassId" RETURNING 1)
+SELECT count(*) FROM expired
+```
+
+- **Counters cannot drift.** The decrement per class is the number of rows the guarded UPDATE actually flipped (`RETURNING`), applied in the same statement and transaction, the same pattern as Sessions 3-4. This relies on the invariant `HeldSeats = number of HELD rows` (unswept expired rows included), which every writer and the Session 3 migration backfill maintain. Data that breaks it makes the DB's `ck_classes_seats_not_oversold` reject the sweep loudly rather than hiding the drift.
+- **Never waits on a hold row** (`SKIP LOCKED`): a row another request holds is being dealt with by that request. The class row is updated only after `per_class` has consumed every flipped row, so the sweep never holds the class lock while still locking hold rows.
+- **One sweep at a time** across all API instances, via `pg_try_advisory_xact_lock` taken inside the transaction (released at commit/rollback, so a crash cannot leave it behind). A sweep that does not get the lock skips; the holder is doing the same work. This also removes any class-row lock-order question between two sweeps.
+- A backlog larger than one batch is drained by looping until a batch comes back short.
+- Confirmed and cancelled holds are never touched, whatever their `ExpiresAt`.
+
+**Why hold creation does not use `SKIP LOCKED` (and the sweep does).** If a request skipped rows that a sweep had locked but not yet released, it could claim a seat while the sweep's decrement was still uncommitted and see a false NO_SEAT_AVAILABLE for a seat that has in fact expired. So hold creation waits for those rows (correct counters once it proceeds), which is why its cleanup must lock in a fixed order (next point). The sweep has no such concern: skipping a row only means it is cleaned up a moment later.
+
+**Correction to Session 3: the hold-creation cleanup could deadlock.** Session 3 stated "no deadlocks". The race test written for this session disproved it: when many `POST /classes/{id}/holds` requests reach a class with a pile of expired-but-unswept holds, each runs the step-1 cleanup over the same rows, and each keeps every row it touches locked until commit, in whatever order its scan meets them, so two requests can end up holding each other's next row. Postgres reported `40P01 deadlock detected` ("while locking tuple ... in relation holds") and the loser got HTTP 500, which the project forbids for a predictable situation. It reproduced with **no sweep running at all** (in two 40-round stress runs with sweeps off, 29 and 27 requests failed). Fix, in `HoldService.CreateAsync` step 1: the rows are locked in one fixed order (`SELECT "Id" ... ORDER BY "Id" FOR UPDATE` in a `MATERIALIZED` CTE, so no request can hold a row another wants while wanting one it holds), and the class row is updated only after a `count(*)` over all flipped rows, so it is never locked while hold rows are still being locked. Only the lock order changed: the same rows flip and the counter drops by the same amount. After the fix the same race (with and without concurrent sweeps) ran clean repeatedly (0 deadlocks in 5 repeated runs plus the full suite), against failures on every pre-fix run. Tests: `Concurrent_hold_requests_cleaning_up_the_same_expired_holds_never_fail` and `Sweep_racing_hold_creation_keeps_counters_equal_to_the_rows`. Lock order overall is now: hold rows in Id order, then the class row; confirm/cancel (one hold row, then the class row) and the sweep (skips locked rows, then class rows) fit that order.
+
+**Test data must respect the counter invariant.** The sweep is global, so it also reaches rows seeded by other tests in the shared database. One Session 2 test seeded HELD rows (one expired) without moving `HeldSeats`, which the sweep then correctly refused to push below zero; that test now seeds the counters to match its rows. Its assertions (GET excludes the expired hold) are unchanged.
+
+**GET /health.** `HealthController` -> `IHealthService`/`HealthService`, controller only maps the result. The check is `SELECT 1` through the app's own `DbContext`, bounded to 3 seconds so a hung database cannot hang the probe. 200 `{ "status": "ok", "database": "up" }`; 503 `{ "error": "DATABASE_UNAVAILABLE", "message": ... }` in the standard error shape (the exception goes to the log, not the client). A client disconnect is not reported as a database failure. No `X-Student-Id`. It is an operational endpoint outside the frozen student-facing `API_CONTRACT.md`, which is left untouched. The 503 test starts a second real Postgres container and stops it mid-test, so no mocks and the shared test database is unaffected.
+
+**Still not built:** global exception-handling middleware (unexpected exceptions still fall to the framework default).

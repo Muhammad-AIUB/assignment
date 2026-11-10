@@ -1,3 +1,4 @@
+using Api.BackgroundServices;
 using Api.Dtos;
 using Api.Services;
 using FluentValidation;
@@ -42,6 +43,9 @@ try
     builder.Services.AddSingleton(TimeProvider.System);
     builder.Services.AddScoped<IClassService, ClassService>();
     builder.Services.AddScoped<IHoldService, HoldService>();
+    builder.Services.AddScoped<IHealthService, HealthService>();
+    builder.Services.AddScoped<IHoldExpirySweeper, HoldExpirySweeper>();
+    builder.Services.AddHostedService<HoldExpiryWorker>();
     builder.Services.AddFluentValidationAutoValidation();
     builder.Services.AddValidatorsFromAssemblyContaining<Program>();
     builder.Services.AddEndpointsApiExplorer();

@@ -25,3 +25,11 @@
   - 400 (bad `X-Student-Id`), 404 `HOLD_NOT_FOUND`, 409 `NOT_HOLD_OWNER` / `HOLD_EXPIRED` / `HOLD_CANCELLED` / `HOLD_ALREADY_CONFIRMED`, standard error shape
   - Integration tests: 39 new (incl. 20 concurrent confirms, 10 concurrent cancels, confirm-vs-cancel race): 61 passing total
   - Still missing: `docs/BUSINESS_RULES.md` (rules 2, 5 and the delete assumption taken from the prompt; see ARCHITECTURE.md); global exception-handling middleware
+- [x] Session 5: expiry sweep + health check — done
+  - `HoldExpiryWorker` (`BackgroundService`/`IHostedService`) runs `HoldExpirySweeper` every 5 s (`HOLD_EXPIRY_SWEEP_INTERVAL_SECONDS`, `HOLD_EXPIRY_SWEEP_ENABLED`): marks expired HELD holds EXPIRED and decrements `HeldSeats` by exactly the rows flipped. Housekeeping only; correctness stays with the computed logic of Sessions 2-4 (stated in code comments and tested)
+  - Sweep is batched (500), never waits on locked rows (`SKIP LOCKED`), one at a time across instances (advisory lock), and a failed sweep is logged and retried, never fatal
+  - GET /health: `SELECT 1` with a 3 s bound; 200 `{status, database}` or 503 `DATABASE_UNAVAILABLE` in the standard error shape (outside the frozen contract)
+  - **Bug fixed in Session 3 code:** concurrent POST /classes/{id}/holds on a class with many expired-unswept holds could deadlock in the cleanup step and return 500 (reproduced with no sweep running). Cleanup now locks rows in a fixed order and touches the class row last; see ARCHITECTURE.md
+  - Session 2 test seed now keeps the `HeldSeats`/`ConfirmedSeats` counters equal to its rows (the global sweep relies on that invariant)
+  - Tests: 9 unit (worker scheduling, options) + 72 integration (11 new: sweeper, worker end-to-end, cleanup races, /health 200 and 503 against a stopped real Postgres) passing
+  - Still missing: `docs/BUSINESS_RULES.md`; global exception-handling middleware

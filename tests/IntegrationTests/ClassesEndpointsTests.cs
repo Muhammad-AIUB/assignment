@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Domain.Entities;
 using Domain.Enums;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace IntegrationTests;
@@ -92,6 +93,13 @@ public class ClassesEndpointsTests(ApiFactory factory)
                 H(HoldStatus.Confirmed, now.AddMinutes(-60), "10000000000000007"),
                 H(HoldStatus.Confirmed, now.AddMinutes(-60), "10000000000000008"));
             await db.SaveChangesAsync();
+
+            // Keep the denormalised counters equal to the rows seeded above (3 HELD rows, the expired one
+            // included until it is swept; 3 CONFIRMED), as every real writer does. The expiry sweep relies
+            // on that invariant, so seed data that breaks it would trip the DB's no-negative-seats check.
+            await db.Classes.Where(c => c.Id == id).ExecuteUpdateAsync(s => s
+                .SetProperty(c => c.HeldSeats, 3)
+                .SetProperty(c => c.ConfirmedSeats, 3));
         });
 
         var one = await _client.GetFromJsonAsync<JsonElement>($"/classes/{id}");

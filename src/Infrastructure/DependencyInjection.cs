@@ -26,6 +26,16 @@ public static class DependencyInjection
             .Validate(o => o.DurationSeconds > 0, $"{HoldOptions.ConfigKey} must be greater than 0")
             .ValidateOnStart();
 
+        services.AddOptions<HoldExpirySweepOptions>()
+            .Configure(o =>
+            {
+                o.Enabled = configuration.GetValue(HoldExpirySweepOptions.EnabledConfigKey, true);
+                o.IntervalSeconds = configuration.GetValue(
+                    HoldExpirySweepOptions.IntervalConfigKey, HoldExpirySweepOptions.DefaultIntervalSeconds);
+            })
+            .Validate(o => o.IntervalSeconds > 0, $"{HoldExpirySweepOptions.IntervalConfigKey} must be greater than 0")
+            .ValidateOnStart();
+
         return services;
     }
 }

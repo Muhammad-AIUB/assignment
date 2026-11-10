@@ -41,3 +41,10 @@
   - Not shapeable by middleware (Kestrel rejects before the pipeline): `%00` in the URL path, malformed request line, oversized headers
   - Tests: 27 unit (+18, `ExceptionMapperTests`) + 132 integration (+60: `ExceptionHandlingTests`, `ContractErrorCodesTests`) passing; also smoke-tested on real Kestrel with Postgres stopped mid-run
   - Still missing: `docs/BUSINESS_RULES.md`
+- [x] Session 7: Dockerize — done
+  - `src/Api/Dockerfile`: multi-stage (`sdk:8.0` build, `aspnet:8.0-alpine` runtime, 176 MB image); restore layer cached on the three csproj files; runs as the base image's non-root `app` user (uid 1654) on port 8080; `HEALTHCHECK` calls `GET /health`
+  - `docker-compose.yml` (repo root, project name `school-admission`): `postgres:16-alpine` (named volume `postgres_data`, `pg_isready` healthcheck, not published to the host) + `api` (starts only once Postgres is healthy; `ConnectionStrings__Postgres`, `HOLD_DURATION_SECONDS` and the two sweep variables passed as env; published on `${API_PORT:-8080}`). No frontend service yet
+  - `.env.example` lists every variable. Compose carries the same defaults, so `docker compose up --build` works with no `.env`. `.env` is git-ignored; `.dockerignore` keeps tests, docs, bin/obj, .git and .env out of the build context
+  - Verified on Docker 28.3 / Compose 2.39: `docker compose up --build` -> both containers healthy, both migrations applied on first start, API reachable at http://localhost:8080 (`/health` 200, create class -> hold -> confirm, 400 and 404 in the standard error shape, `/swagger` 200); process runs as uid 1654; data survived `down` + `up` (named volume); `HOLD_DURATION_SECONDS=30` produced a hold expiring 30 s out; no WRN/ERR lines in the API log; `.env.example` resolves to the same values as the compose defaults. The smoke-test stack was removed with `down -v`
+  - No application code changed, so the test suite was not re-run
+  - Still missing: `docs/BUSINESS_RULES.md`

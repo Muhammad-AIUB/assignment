@@ -2,3 +2,6 @@ bin/
 obj/
 .vs/
 *.user
+
+# Local environment overrides (may hold passwords); .env.example is the committed template
+.env

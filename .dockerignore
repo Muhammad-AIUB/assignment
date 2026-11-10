@@ -1,0 +1,26 @@
+# Keep the build context small and keep secrets and build output out of image layers.
+**/bin/
+**/obj/
+.git/
+.gitignore
+.gitattributes
+.vs/
+.idea/
+.vscode/
+.claude/
+*.user
+
+# Not needed to build the Api image (it builds src/ only).
+tests/
+docs/
+.config/
+*.md
+
+# Local environment files (may hold passwords). .env.example is documentation only.
+.env
+.env.*
+
+# Docker files themselves.
+**/Dockerfile*
+docker-compose*.yml
+.dockerignore

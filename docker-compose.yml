@@ -1,0 +1,54 @@
+# School Admission system: PostgreSQL + API.
+#
+#   docker compose up --build        API on http://localhost:8080  (Swagger UI at /swagger, health at /health)
+#   docker compose down              stop, keep the data
+#   docker compose down -v           stop and DELETE the database volume
+#
+# Every ${VAR:-default} below can be overridden from a .env file next to this file (copy .env.example)
+# or from the shell. With no .env at all the defaults below are used, so a plain `up --build` works.
+
+name: school-admission
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-school_admission}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      # Named volume: the data survives `docker compose down` and container re-creation.
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # $$ is escaped for Compose; the container's shell expands the variables.
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    # Not published to the host on purpose: only the API needs it, over the compose network.
+    # To inspect the data:  docker compose exec postgres psql -U postgres -d school_admission
+    # To reach it from the host instead, add:  ports: ["5432:5432"]
+
+  api:
+    build:
+      context: .                     # repo root, so the Dockerfile can see src/Domain, src/Infrastructure and src/Api
+      dockerfile: src/Api/Dockerfile
+    image: school-admission-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy   # wait until Postgres accepts connections, then migrate and serve
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Built from the POSTGRES_* values above so the two can never disagree. "postgres" is the service name.
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-school_admission};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
+      HOLD_DURATION_SECONDS: ${HOLD_DURATION_SECONDS:-600}
+      HOLD_EXPIRY_SWEEP_ENABLED: ${HOLD_EXPIRY_SWEEP_ENABLED:-true}
+      HOLD_EXPIRY_SWEEP_INTERVAL_SECONDS: ${HOLD_EXPIRY_SWEEP_INTERVAL_SECONDS:-5}
+    ports:
+      - "${API_PORT:-8080}:8080"
+
+volumes:
+  postgres_data:

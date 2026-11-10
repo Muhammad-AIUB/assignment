@@ -267,8 +267,44 @@ React 18.3.1 as requested (19 is current). **React Router is `react-router-dom` 
 
 `src/config.ts` (runtime config), `src/api/types.ts` (the contract's request/response shapes, copied from `docs/API_CONTRACT.md`), `src/api/client.ts` (the axios instance, `X-Student-Id` header helper), `src/api/endpoints.ts` (one typed function per contract endpoint, each taking an optional `AbortSignal` for TanStack Query cancellation), `src/queryClient.ts`, `src/pages/*` (the four placeholders), `src/App.tsx` (`BrowserRouter` + `Routes`), `src/main.tsx` (`StrictMode` > `QueryClientProvider` > `App`; confirmed in the browser by walking React's fiber tree).
 - The endpoint functions return the response body and **let axios errors propagate**. Turning 4xx bodies into plain-language messages is the error-handling session's job.
-- The student id is an **explicit argument**. Where it is stored (`localStorage` key `studentId`) is the identity session's decision, so nothing here reads `localStorage`.
+- The student id is an **explicit argument**. Where it is stored (`localStorage` key `studentId`) is the identity session's decision, so nothing here reads `localStorage`. *(Superseded in Session 12: the endpoint functions no longer take a `studentId`; the request interceptor adds the header. See "Session 12" below.)*
 - The `QueryClient` uses library defaults. Retry and polling policy (the spec wants 3-5 s polling and instant 4xx messages, which the default retry-with-backoff would delay) is left to the sessions that build those screens.
 - Nothing imports the API layer yet, so Vite **tree-shakes it out of the production bundle** until a screen uses it. That is why the config check above needed a probe build with the client imported.
 - `BrowserRouter` uses real paths, so the static server that eventually serves `dist/` must answer `/holds/...` and `/me` with `index.html`, but must **not** do that for `/config.js` (see above).
 - **There is no catch-all route yet, and an unknown path renders a blank page** (declarative `<Routes>` with no match renders nothing and only logs `No routes matched location`; checked by rendering `/nope` on the server, which gave an empty string). `docs/FRONTEND_SPEC.md` says no error may leave a blank screen, so a `*` route (and the error boundary) belongs in the error-handling session.
+
+## Session 12 — Student identity (`studentId` context, header input, `X-Student-Id` interceptor)
+
+Scope: who the student is, kept in one place and sent with every request. No screens, no error mapping, no error boundary (later sessions).
+
+### One owner for the value: a small store, exposed as a React context
+
+`src/identity/studentIdStore.ts` owns the id: it validates, keeps it in memory, persists it to `localStorage["studentId"]` and notifies subscribers. `src/identity/StudentIdProvider.tsx` is the React context over it (`useSyncExternalStore`), giving components `{ studentId, setStudentId }` through `useStudentId()`. The axios interceptor reads the same store with `getStudentId()`.
+
+**Why a store behind the context, not plain `useState` in the provider.** An axios interceptor lives outside React and cannot call `useContext`. Handing the value from React state to the interceptor in an effect would leave a window in which a request made during the first commit (or by a child's layout effect, which runs before the parent's) sees no id. With one store both sides read the same value at the same instant, and the request that follows a Save already carries the new id. The load from `localStorage` happens on the first read, which is the first render, so a returning student never sees an empty input flash.
+
+### What is accepted
+- **Exactly 17 ASCII digits**, `^[0-9]{17}$`, matching the backend's rule. In JavaScript `$` (no `m` flag) matches only at the very end, so the trailing-newline gap noted for the .NET pattern in Session 8 does not exist here. Surrounding whitespace is trimmed first (a copy-paste artefact); whitespace inside the number is rejected. Bangla digits are rejected too, as the backend would: the inline error says "(0-9)". There is deliberately no `maxLength` on the input, since silently truncating a pasted 18-digit value to 17 would accept a wrong number.
+- Anything else shows an inline error (`role="alert"`, `aria-invalid`) and changes **nothing**: not the stored value, not the id used for requests. A previously saved id stays in force until a valid replacement is saved.
+- A value read from `localStorage` that is not 17 digits (hand-edited, from another version) is **ignored**, not sent, and left in place until a valid id overwrites it.
+
+### The interceptor (`src/api/client.ts`)
+A second request interceptor sets `X-Student-Id` from `getStudentId()` on every request, read at send time. With no id entered, **no header is sent** (not an empty one); the endpoints that need it answer 400 `INVALID_STUDENT_ID` (the backend's code for a missing or malformed header), which the error-handling session maps to a message. It sends the id on every call, including `GET /classes`, which does not need it: harmless to the backend, and it keeps the rule "every request" free of exceptions. The unsaved text in the input is never sent, only the accepted id.
+
+**`asStudent` and the `studentId` parameters of `createHold`, `confirmHold`, `cancelHold` and `listMyHolds` were removed.** Two ways to set the same header would let them disagree, and nothing used them yet. Screens call `createHold(classId)`, `listMyHolds()` and so on.
+
+### Header on every page (`src/components/AppLayout.tsx`)
+`AppLayout` wraps `<Routes>` inside `BrowserRouter` (rather than being a layout route), so the header, with its input, is rendered on every URL **including ones that match no route**. It is one component instance for the whole session, so an unsaved draft survives navigation. The page content is in `<main>`; the app title links to `/`. Styling is one small CSS file next to the component; the rest of the app is still unstyled.
+
+### Failure handling
+Every `localStorage` access is in `try/catch` (blocked site data, private windows, quota). If a write fails the id stays in memory and is still sent for the rest of the page load; it just will not survive a reload. For that reason the confirmation text says "Registration number set.", not "saved on this device". Checked with `Storage.prototype.setItem` made to throw: no uncaught error, id accepted, header sent.
+
+### Not done, on purpose
+- **No cross-tab sync** (no `storage` event listener). A change made in another tab is picked up on reload; until then this tab keeps sending the id it shows.
+- **No "clear / sign out"** control; the spec has no login. Saving a different valid number replaces the old one.
+- **No automated tests.** The frontend has no test runner (Session 11) and adding one was outside this session. The behaviour was checked by hand in a browser (see PROGRESS.md).
+- **CORS is still open** (Session 11 item). One consequence to note: `GET /classes` used to be a "simple" cross-origin request, but now that it carries `X-Student-Id` once an id is entered, every call is preflighted, so the backend's CORS policy must allow that header for all of them.
+
+### For the screens that follow
+- Do not fire an id-requiring query before an id exists: use `enabled: studentId !== null` (from `useStudentId()`), otherwise the first call is a guaranteed 400.
+- **Put `studentId` in the query key** of anything that depends on it (`/me/holds`, a hold read as its owner). The header changes when the id changes, but TanStack Query only refetches when the key changes; without it a student switching numbers would briefly see the previous student's cached applications.

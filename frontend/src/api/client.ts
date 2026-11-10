@@ -1,5 +1,6 @@
 import axios from "axios";
 import { getApiBaseUrl } from "../config";
+import { getStudentId } from "../identity/studentIdStore";
 
 /**
  * The one axios instance every API call goes through.
@@ -18,7 +19,15 @@ apiClient.interceptors.request.use((config) => {
 /** Header carrying the student's 17-digit registration number. */
 export const STUDENT_ID_HEADER = "X-Student-Id";
 
-/** Request config that identifies the student, for the endpoints that need it. */
-export function asStudent(studentId: string) {
-  return { headers: { [STUDENT_ID_HEADER]: studentId } };
-}
+// Identify the student on every request. The id is read when each request is
+// sent, so a change made in the header input applies to the very next call, and
+// the endpoint functions never have to be handed an id. Before an id has been
+// entered no header is sent (not an empty one); the endpoints that need it then
+// answer 400, which the error-handling session turns into a message.
+apiClient.interceptors.request.use((config) => {
+  const studentId = getStudentId();
+  if (studentId !== null) {
+    config.headers.set(STUDENT_ID_HEADER, studentId);
+  }
+  return config;
+});

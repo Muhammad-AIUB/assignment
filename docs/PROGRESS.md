@@ -1,6 +1,6 @@
 # Progress
 
-**Status: all backend sessions complete (Sessions 0-10). Frontend: scaffold done (Session 11); no real screens yet.**
+**Status: all backend sessions complete (Sessions 0-10). Frontend: scaffold (Session 11) and student identity (Session 12) done; no real screens yet.**
 
 ## Backend sessions
 
@@ -98,3 +98,12 @@
     - An unknown URL renders a blank page (no `*` route); the error boundary is also still to do
     - Correction: a browser-side app must use a browser-reachable `apiBaseUrl` (`http://localhost:8080` under compose), not `http://backend:8080` as the repository-layout note suggested
   - Next: identity input (`studentId` in `localStorage`) and the class list screen
+- [x] Session 12: student identity — done
+  - **`StudentIdProvider` (React context)** in `src/identity/`: holds the current `studentId`, loads it from `localStorage["studentId"]` on start (returning students never retype it) and writes every accepted change back. `useStudentId()` gives `{ studentId, setStudentId }`. Behind it is a small store (`studentIdStore.ts`) so code outside React can read the same value; the reasoning is in ARCHITECTURE.md (Session 12)
+  - **Header input on every page:** `AppLayout` wraps `<Routes>` in `App.tsx`, so the header with `StudentIdInput` shows on all four routes and on unmatched URLs, and is never remounted (an unsaved draft survives navigation). Validates **exactly 17 digits** (`^[0-9]{17}$`, surrounding whitespace trimmed) before accepting; otherwise an inline `role="alert"` error, a red border, and nothing is stored or sent. Bangla digits, 16/18 digits, letters, inner spaces, empty and `.`/`-` are all rejected
+  - **`X-Student-Id` interceptor** in `src/api/client.ts`: sets the header on every request from the accepted id, read at send time (a Save applies to the very next call). No id entered, or an invalid value in `localStorage` -> no header at all. **`asStudent` and the `studentId` parameter of `createHold` / `confirmHold` / `cancelHold` / `listMyHolds` were removed** (nothing used them yet); screens call `createHold(classId)`, `listMyHolds()` and so on
+  - `localStorage` access is guarded everywhere; if it throws, the id stays in memory for the page load. The confirmation reads "Registration number set." rather than claiming it was saved on the device
+  - **Verified:** `npm run build` (typecheck + production build) passes, run again after the last edit. In a browser against the Vite dev server: header and prefilled saved id on `/`, `/me`, `/admin/new-class`, `/holds/h_123` and an unmatched URL, same DOM element throughout; 8 invalid forms rejected with nothing stored, a valid id with surrounding spaces accepted trimmed, and a later invalid entry did not replace it; saved id restored after a reload; the real `apiClient` (with a capturing adapter, so no network) sent the saved id on GET, POST and DELETE, **not** the unsaved text in the input, and the new id on the very next call after a Save; no header when nothing is stored or the stored value is garbage; with `Storage.prototype.setItem` throwing, no uncaught error and the id was still sent; no console errors; header wraps cleanly at 375 px
+  - **Not verified / not done:** no request reached the real backend (not run here, and its CORS is still open); no automated tests (the frontend has no runner); no cross-tab sync, no clear/sign-out control. The pane was hidden during the browser checks, so each was done as short synchronous steps rather than with in-page waits
+  - **For the screens:** gate id-requiring queries with `enabled: studentId !== null` and put `studentId` in their query keys, or a student switching numbers would briefly see the previous one's cached data (ARCHITECTURE.md, Session 12)
+  - Next: class list screen (polling `GET /classes`), then the remaining screens, the error mapping and boundary, and the unresolved CORS / same-origin question

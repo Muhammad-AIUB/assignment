@@ -152,7 +152,11 @@ function ClassCard({ schoolClass, index }: { schoolClass: SchoolClass; index: nu
         {apply.isError && (
           <p className="class-card-error" role="alert">
             <AlertIcon />
-            <ApplyErrorText error={apply.error} />
+            {/* One block: with no backend message ApplyErrorText returns a headline
+                and a detail line, which must stack beside the icon, not join its row. */}
+            <span className="class-card-error-text">
+              <ApplyErrorText error={apply.error} />
+            </span>
           </p>
         )}
 

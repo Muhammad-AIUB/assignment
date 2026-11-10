@@ -486,6 +486,13 @@
   font-weight: 500;
 }
 
+.class-card-error-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
 .class-card-error svg {
   flex: none;
   width: 1.15rem;

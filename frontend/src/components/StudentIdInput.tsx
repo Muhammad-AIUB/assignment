@@ -53,6 +53,7 @@ export default function StudentIdInput() {
           inputMode="numeric"
           autoComplete="off"
           placeholder="17-digit number"
+          maxLength={17}
           value={draft}
           onChange={(event) => {
             setDraft(event.target.value);
@@ -74,7 +75,7 @@ export default function StudentIdInput() {
           (saved
             ? "Registration number set."
             : studentId === null
-              ? "Needed to apply for a seat and to see your applications."
+              ? "17 digits, numbers only — needed to apply for a seat and to see your applications."
               : "Press Save to switch to this number.")}
       </p>
     </form>

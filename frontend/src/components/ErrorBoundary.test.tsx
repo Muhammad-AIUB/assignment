@@ -49,8 +49,9 @@ describe("ErrorBoundary", () => {
 
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("Something went wrong");
-    // The spec's generic line, in Bangla.
-    expect(alert).toHaveTextContent("কিছু একটা ভুল হয়েছে, আবার চেষ্টা করুন");
+    expect(alert).toHaveTextContent(
+      "This screen stopped working. Try again, or go back to the classes.",
+    );
     expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();
     expect(screen.getByRole("link", { name: /Back to classes/ })).toHaveAttribute("href", "/");
     // What is outside the boundary is untouched.

@@ -6,7 +6,7 @@ import { classListQueryKey } from "./useClassList";
 import { holdQueryKey } from "./useHold";
 
 /**
- * "ভর্তি ফি দিন": POST /holds/:holdId/confirm.
+ * "Pay admission fee": POST /holds/:holdId/confirm.
  *
  * On success the cached hold is set to the status the server just returned
  * (CONFIRMED), so the screen changes at once instead of showing an enabled
@@ -37,7 +37,7 @@ export function useConfirmHold(holdId: string) {
 }
 
 /**
- * "বাতিল": DELETE /holds/:holdId.
+ * "Cancel": DELETE /holds/:holdId.
  *
  * On success (204) the cached hold is marked CANCELLED, so going back to this
  * page does not flash a hold that is gone, and the student is sent to the class

@@ -75,7 +75,7 @@ describe("application status: the clock", () => {
     tickTo(3_000);
 
     expect(screen.getByRole("heading", { name: "This hold has expired" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "ভর্তি ফি দিন" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Pay admission fee" })).toBeDisabled();
     expect(state.requests).toBe(requestsBefore);
   });
 

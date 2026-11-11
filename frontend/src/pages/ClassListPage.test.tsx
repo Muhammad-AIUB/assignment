@@ -57,10 +57,10 @@ describe("class list", () => {
     renderWithProviders();
 
     const open = await screen.findByRole("button", {
-      name: "আবেদন করুন: Class 6 - Morning Shift",
+      name: "Apply: Class 6 - Morning Shift",
     });
     const full = await screen.findByRole("button", {
-      name: "আবেদন করুন: Class 7 - Day Shift",
+      name: "Apply: Class 7 - Day Shift",
     });
 
     expect(open).toBeEnabled();
@@ -81,7 +81,7 @@ describe("class list", () => {
     renderWithProviders(undefined, { studentId: "20152691234567890" });
 
     await user.click(
-      await screen.findByRole("button", { name: "আবেদন করুন: Class 6 - Morning Shift" }),
+      await screen.findByRole("button", { name: "Apply: Class 6 - Morning Shift" }),
     );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -90,7 +90,7 @@ describe("class list", () => {
     // The student stays on the class list and can try again.
     expect(screen.getByRole("heading", { name: "Choose a class" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "আবেদন করুন: Class 6 - Morning Shift" }),
+      screen.getByRole("button", { name: "Apply: Class 6 - Morning Shift" }),
     ).toBeEnabled();
   });
 });

@@ -2,7 +2,7 @@ import axios from "axios";
 import type { ApiErrorBody } from "./types";
 
 /** Fallback wording from docs/FRONTEND_SPEC.md ("Error handling"). */
-export const GENERIC_ERROR = "কিছু একটা ভুল হয়েছে, আবার চেষ্টা করুন";
+export const GENERIC_ERROR = "Something went wrong, please try again";
 
 /**
  * The `message` of the backend's `{ error, message }` body, if the error has
@@ -42,7 +42,7 @@ export function fallbackDetail(error: unknown): string | null {
 
 /** What a screen shows for a failed request; see describeApiError. */
 export interface ApiErrorDescription {
-  /** The backend's own message, or the generic Bangla line when it sent none. */
+  /** The backend's own message, or the generic fallback line when it sent none. */
   message: string;
   /** A short second line, only when the backend sent no message of its own. */
   detail: string | null;

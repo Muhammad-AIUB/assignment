@@ -24,7 +24,7 @@ describe("describeApiError", () => {
     });
   });
 
-  it("falls back to the generic Bangla line when the backend's message is blank", () => {
+  it("falls back to the generic fallback line when the backend's message is blank", () => {
     const error = httpError(400, { error: "VALIDATION_ERROR", message: "   " });
 
     expect(describeApiError(error).message).toBe(GENERIC_ERROR);

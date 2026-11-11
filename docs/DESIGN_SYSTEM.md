@@ -22,7 +22,7 @@ All four `styles/` files are loaded once from `src/main.tsx` through `styles/ind
 
 1. **Never write a colour, font or radius into a component.** Use the variables in `tokens.css` (`var(--forest-800)`, `var(--radius-md)`, `var(--font-display)`). To retune the look, change `tokens.css`.
 2. **Text colours:** `--ink` for body text, `--ink-soft` for secondary text. `--ink-faint` only for large text and placeholders. `--line` is a decorative divider and is **too faint for the edge of a control**: use `--field-border` there (3.5:1 on the card).
-3. **Mark Bangla text with `lang="bn"`** (`<span lang="bn">আবেদন করুন</span>`). It selects the Bangla face and gives it the extra line height Bangla needs.
+3. The interface is English-only, so no `lang="bn"` marking is needed; Hind Siliguri is still used for its clean Latin glyphs.
 4. **Headings use the display font** (`h1`-`h3` already do). Big numbers: `font-family: var(--font-display)` with `font-variant-numeric: lining-nums tabular-nums`.
 5. **Motion:** do not add animation that ignores `prefers-reduced-motion`; `base.css` already turns all animation and transitions off for it. An entrance animation uses `animation-fill-mode: backwards` (not `both`), or it pins the end state and overrides hover transforms.
 6. **Every new colour pair must meet WCAG contrast** (4.5:1 for text, 3:1 for large text and control edges). The existing pairs were all computed; see ARCHITECTURE.md.

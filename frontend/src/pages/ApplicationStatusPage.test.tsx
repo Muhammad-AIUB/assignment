@@ -56,7 +56,7 @@ describe("application status: what the student sees", () => {
     expect(await screen.findByRole("heading", { name: title })).toBeInTheDocument();
     // Nothing is left to count down to or to pay.
     expect(screen.queryByRole("timer")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "ভর্তি ফি দিন" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "বাতিল" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Pay admission fee" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
   });
 });

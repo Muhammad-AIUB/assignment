@@ -51,6 +51,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <span>
             Seats are held first come, first served. A hold that is not paid in time is released.
           </span>
+          {/* No login exists in this build (see ASSUMPTIONS.md, "Operation" and "Out of scope"):
+              this link just makes the page reachable for a reviewer without the URL memorised. */}
+          <Link to="/admin/new-class" className="app-footer-admin">
+            Admin: create a class
+          </Link>
         </div>
       </footer>
     </>

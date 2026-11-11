@@ -10,7 +10,7 @@ import SeatStrip from "./SeatStrip";
 import "./ClassCards.css";
 
 /** Fallback wording from docs/FRONTEND_SPEC.md ("Error handling"). */
-const GENERIC_ERROR = "কিছু একটা ভুল হয়েছে, আবার চেষ্টা করুন";
+const GENERIC_ERROR = "Something went wrong, please try again";
 
 const STATUS_LABEL: Record<SeatStatus, string> = {
   open: "Open",
@@ -52,7 +52,7 @@ function ErrorText({ error }: { error: unknown }) {
   const detail = errorDetail(error);
   return (
     <>
-      <strong lang="bn">{GENERIC_ERROR}</strong>
+      <strong>{GENERIC_ERROR}</strong>
       {detail !== null && <span className="state-card-detail">{detail}</span>}
     </>
   );
@@ -142,12 +142,12 @@ function ClassCard({ schoolClass, index }: { schoolClass: SchoolClass; index: nu
           className="btn btn--primary class-card-apply"
           disabled={full || apply.isPending}
           aria-busy={apply.isPending}
-          aria-label={`আবেদন করুন: ${schoolClass.name}`}
+          aria-label={`Apply: ${schoolClass.name}`}
           onClick={() => {
             if (requireId.ensure()) apply.mutate(schoolClass.id);
           }}
         >
-          <span lang="bn">আবেদন করুন</span>
+          <span>Apply</span>
           {apply.isPending ? (
             <span className="spinner" aria-hidden="true" />
           ) : (
@@ -236,7 +236,7 @@ function Hero({ state }: { state: ClassListState }) {
       <div className="hero-inner">
         <div className="hero-eyebrow">
           <p className="hero-kicker">
-            <span lang="bn">ভর্তি</span> School admission
+            School admission
           </p>
           <p className="live-pill" data-mode={mode}>
             <span className="live-dot" aria-hidden="true" />

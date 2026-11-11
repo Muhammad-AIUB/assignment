@@ -25,7 +25,7 @@ function recorder() {
 }
 
 describe("apply without a registration number", () => {
-  const APPLY = "আবেদন করুন: Class 6 - Morning Shift";
+  const APPLY = "Apply: Class 6 - Morning Shift";
 
   function serveClassList() {
     server.use(http.get(`${API_BASE}/classes`, () => HttpResponse.json([aClass()])));
@@ -120,7 +120,7 @@ describe("confirm and cancel without a registration number (a status link opened
     renderWithProviders(undefined, { route: ROUTE });
     await screen.findByRole("heading", { name: "Your seat is on hold" });
 
-    await user.click(screen.getByRole("button", { name: "ভর্তি ফি দিন" }));
+    await user.click(screen.getByRole("button", { name: "Pay admission fee" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(MESSAGE);
     expect(document.body).not.toHaveTextContent("X-Student-Id");
@@ -128,7 +128,7 @@ describe("confirm and cancel without a registration number (a status link opened
     expect(screen.getByLabelText("Registration number")).toHaveFocus();
     // Nothing changed: still held, and the student can fill the number in and try again.
     expect(screen.getByRole("heading", { name: "Your seat is on hold" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "ভর্তি ফি দিন" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Pay admission fee" })).toBeEnabled();
   });
 
   it("asks for the number instead of cancelling, and sends nothing", async () => {
@@ -144,7 +144,7 @@ describe("confirm and cancel without a registration number (a status link opened
     renderWithProviders(undefined, { route: ROUTE });
     await screen.findByRole("heading", { name: "Your seat is on hold" });
 
-    await user.click(screen.getByRole("button", { name: "বাতিল" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(MESSAGE);
     expect(cancelled.sent).toEqual([]);
@@ -170,13 +170,13 @@ describe("confirm and cancel without a registration number (a status link opened
     serveClass(aClass());
     renderWithProviders(undefined, { route: ROUTE });
     await screen.findByRole("heading", { name: "Your seat is on hold" });
-    await user.click(screen.getByRole("button", { name: "ভর্তি ফি দিন" }));
+    await user.click(screen.getByRole("button", { name: "Pay admission fee" }));
     await screen.findByText(MESSAGE);
 
     await user.type(screen.getByLabelText("Registration number"), STUDENT_ID);
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.queryByText(MESSAGE)).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "ভর্তি ফি দিন" }));
+    await user.click(screen.getByRole("button", { name: "Pay admission fee" }));
 
     expect(await screen.findByRole("heading", { name: "Admission confirmed" })).toBeInTheDocument();
     expect(confirmed.sent).toEqual([STUDENT_ID]);

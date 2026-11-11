@@ -2,7 +2,7 @@ import { describeApiError } from "../api/errorMessages";
 
 /**
  * What a failed request says, drawn the same way on every screen: the backend's
- * own message as written, or the generic Bangla line followed by a short detail.
+ * own message as written, or the generic fallback line followed by a short detail.
  * The text comes from `describeApiError`; this only draws it.
  *
  * `detailClassName` lets a screen style the detail line (the default is the
@@ -21,7 +21,7 @@ export default function ApiErrorText({
   }
   return (
     <>
-      <strong lang="bn">{message}</strong>
+      <strong>{message}</strong>
       {detail !== null && <span className={detailClassName}>{detail}</span>}
     </>
   );

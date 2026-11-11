@@ -204,7 +204,7 @@ function HoldDetails({
               aria-busy={confirm.isPending}
               onClick={onConfirm}
             >
-              <span lang="bn">ভর্তি ফি দিন</span>
+              <span>Pay admission fee</span>
               {confirm.isPending ? (
                 <span className="spinner" aria-hidden="true" />
               ) : (
@@ -218,7 +218,7 @@ function HoldDetails({
               aria-busy={cancel.isPending}
               onClick={onCancel}
             >
-              <span lang="bn">বাতিল</span>
+              <span>Cancel</span>
             </button>
           </div>
 
@@ -299,8 +299,8 @@ function HoldScreen({ holdId }: { holdId: string }) {
 
 /**
  * Application status screen ("/holds/:holdId"): the hold's status, a live
- * countdown to its deadline, and the confirm ("ভর্তি ফি দিন") and cancel
- * ("বাতিল") actions.
+ * countdown to its deadline, and the confirm ("Pay admission fee") and cancel
+ * ("Cancel") actions.
  *
  * The status is polled (see useHold). The countdown runs on its own clock and
  * turns the screen to EXPIRED the moment it reaches zero, without waiting for the

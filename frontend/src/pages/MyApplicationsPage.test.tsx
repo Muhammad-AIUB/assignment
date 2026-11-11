@@ -159,7 +159,7 @@ describe("my applications (TC-F10)", () => {
     renderWithProviders(undefined, { route: ROUTE, studentId: STUDENT_ID });
 
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("কিছু একটা ভুল হয়েছে, আবার চেষ্টা করুন");
+    expect(alert).toHaveTextContent("Something went wrong, please try again");
     expect(alert).toHaveTextContent("Could not reach the server.");
   });
 

@@ -100,6 +100,11 @@ change, the setting or place is named. The request/response shapes themselves ar
     `53300 too many clients already` (seen by the student as `400 UNEXPECTED_ERROR`). Seat safety never depended on this: it is
     enforced in the database. If all 30 connections are busy a request waits for one (Npgsql's 15-second connection timeout
     applies) instead of being refused at once.
+26. **Creating a class has no admin role, login, or token.** `POST /classes` and its UI (`/admin/new-class`,
+    linked from the footer so a reviewer does not need the URL) are reachable by anyone, the same as every other
+    endpoint in the contract. The brief names no admin role or auth mechanism for this build; see "Out of scope"
+    below and `docs/PRODUCTION_READINESS.md` for what a real deployment would add (login, roles, a separate
+    admin surface).
 
 ## Out of scope
 

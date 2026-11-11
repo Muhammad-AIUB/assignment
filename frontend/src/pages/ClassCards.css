@@ -88,15 +88,6 @@
   color: var(--on-dark-soft);
 }
 
-.hero-kicker [lang="bn"] {
-  margin-right: 0.15em;
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--gold);
-}
-
 .live-pill {
   display: inline-flex;
   align-items: center;

@@ -23,7 +23,7 @@ function CreateErrorText({ error }: { error: unknown }) {
   const detail = fallbackDetail(error);
   return (
     <>
-      <strong lang="bn">{GENERIC_ERROR}</strong>
+      <strong>{GENERIC_ERROR}</strong>
       {detail !== null && <span className="state-card-detail">{detail}</span>}
     </>
   );

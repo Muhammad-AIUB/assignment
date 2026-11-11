@@ -1,57 +1,18 @@
-import axios from "axios";
 import { Link, useParams } from "react-router-dom";
+import { backendMessage } from "../api/errorMessages";
+import { useClass } from "../api/useClass";
 import { useHold } from "../api/useHold";
 import { useCancelHold, useConfirmHold } from "../api/useHoldActions";
-import type { ApiErrorBody, Hold, HoldStatus } from "../api/types";
+import type { Hold, HoldStatus } from "../api/types";
+import ApiErrorText from "../components/ApiErrorText";
 import { AlertIcon, ArrowRightIcon, CheckIcon } from "../components/icons";
 import { formatCountdown, parseInstant, resolveHold, URGENT_MS } from "./holdCountdown";
 import { useNow } from "./useNow";
 import "./ApplicationStatus.css";
 
-/** Fallback wording from docs/FRONTEND_SPEC.md ("Error handling"). */
-const GENERIC_ERROR = "কিছু একটা ভুল হয়েছে, আবার চেষ্টা করুন";
-
-/** The `message` of the backend's `{ error, message }` body, if the error has one. */
-function backendMessage(error: unknown): string | null {
-  if (axios.isAxiosError<ApiErrorBody>(error)) {
-    const message = error.response?.data?.message;
-    if (typeof message === "string" && message.trim() !== "") {
-      return message;
-    }
-  }
-  return null;
-}
-
-/** A plain line for the cases where the backend sent no message of its own. */
-function fallbackDetail(error: unknown): string | null {
-  if (axios.isAxiosError(error) && !error.response) {
-    return "Could not reach the server.";
-  }
-  if (error instanceof Error && error.message.trim() !== "") {
-    return error.message;
-  }
-  return null;
-}
-
-/**
- * Why a request failed, in the backend's own words (for a confirm or a cancel
- * that is a 409 such as "This hold has expired."). With no backend message
- * (server unreachable, an unexpected failure) it is the generic line plus
- * whatever detail there is. Local to this screen, like the class list's copy;
- * the error-handling session centralizes both.
- */
+/** What a failed request says on this screen: the shared text, with this screen's detail style. */
 function ErrorText({ error }: { error: unknown }) {
-  const message = backendMessage(error);
-  if (message !== null) {
-    return <span>{message}</span>;
-  }
-  const detail = fallbackDetail(error);
-  return (
-    <>
-      <strong lang="bn">{GENERIC_ERROR}</strong>
-      {detail !== null && <span className="hold-error-detail">{detail}</span>}
-    </>
-  );
+  return <ApiErrorText error={error} detailClassName="hold-error-detail" />;
 }
 
 const COPY: Record<HoldStatus, { badge: string; title: string; text: string }> = {
@@ -145,6 +106,11 @@ function HoldDetails({
     nowMs: now,
     fetchedAtMs: fetchedAt,
   });
+
+  // The hold carries only the class id. The name is a nicety: until it arrives (or
+  // if it cannot be fetched) the id is shown instead.
+  const schoolClass = useClass(hold.classId);
+  const className = schoolClass.data?.name ?? hold.classId;
 
   const confirm = useConfirmHold(holdId);
   const cancel = useCancelHold(holdId);
@@ -278,7 +244,7 @@ function HoldDetails({
             </div>
             <div>
               <dt>Class</dt>
-              <dd>{hold.classId}</dd>
+              <dd>{className}</dd>
             </div>
             {endsAt !== null && (
               <div>

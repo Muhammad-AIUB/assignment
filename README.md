@@ -1,11 +1,12 @@
-# School Admission System — Backend API
+# School Admission System
 
-A first-come-first-served school admission API. A student **holds** a seat in a class, then **confirms** it before the
-hold expires, or the seat is released for the next student. Built with .NET 8 (controllers + service layer), EF Core on
-PostgreSQL, FluentValidation and Serilog.
+A first-come-first-served school admission system. A student **holds** a seat in a class, then **confirms** it before the
+hold expires, or the seat is released for the next student. The API is .NET 8 (controllers + service layer), EF Core on
+PostgreSQL, FluentValidation and Serilog; the web app is React + TypeScript (Vite), served by nginx.
 
 | | |
 |---|---|
+| **Web app** | <http://localhost:3000> |
 | **API base URL** | <http://localhost:8080> |
 | **Swagger UI** (interactive docs for every endpoint) | <http://localhost:8080/swagger> |
 | **Health check** | <http://localhost:8080/health> |
@@ -18,8 +19,10 @@ You need Docker with Compose v2. Nothing else (no .NET SDK, no PostgreSQL instal
 docker compose up --build
 ```
 
-The first run builds the API image and starts PostgreSQL 16; the database schema is created automatically when the API
-starts. When both containers are healthy, open <http://localhost:8080/swagger>.
+The first run builds the API and web app images and starts PostgreSQL 16; the database schema is created automatically when
+the API starts. The web app starts once the API reports healthy. Then open <http://localhost:3000> (the web app), or
+<http://localhost:8080/swagger> (the API's interactive docs). The web app's tests are not run by `up`; see
+[Run the frontend tests](#run-the-frontend-tests).
 
 ```bash
 docker compose down        # stop; the database is kept in a Docker volume
@@ -39,8 +42,10 @@ git-ignored) and edit it; Docker Compose picks it up on the next `up`.
 | `HOLD_DURATION_SECONDS` | `600` | How long a hold lasts before the seat is released (must be > 0) |
 | `HOLD_EXPIRY_SWEEP_ENABLED` | `true` | Background job that tidies expired holds. Holds expire correctly even when it is off |
 | `HOLD_EXPIRY_SWEEP_INTERVAL_SECONDS` | `5` | How often that job runs |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:4173` | Browser origins allowed to call the API, comma-separated (see [Calling the API from a browser](#calling-the-api-from-a-browser-cors)). Empty means none |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:4173,http://localhost:3000` | Browser origins allowed to call the API, comma-separated (see [Calling the API from a browser](#calling-the-api-from-a-browser-cors)). Empty means none |
 | `API_PORT` | `8080` | Host port the API is published on |
+| `FRONTEND_PORT` | `3000` | Host port the web app is published on (the default CORS list follows it) |
+| `API_BASE_URL` | `http://localhost:<API_PORT>` | Where the **browser** finds the API. The web container writes it into `/config.js` when it starts, so the same image works against any backend with no rebuild. It must be reachable from the browser: never `http://backend:8080` |
 | `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | `school_admission` / `postgres` / `postgres` | Database credentials. Only applied when the volume is first created; after changing them run `docker compose down -v` |
 
 ### Calling the API from a browser (CORS)
@@ -48,9 +53,10 @@ git-ignored) and edit it; Docker Compose picks it up on the next `up`.
 A web page can only read the API's answers if the API says its origin is allowed. `CORS_ALLOWED_ORIGINS` is that list: each
 entry is the scheme, host and port of the page (`http://localhost:5173`), compared exactly.
 
-- **Default:** `http://localhost:5173` (`npm run dev`) and `http://localhost:4173` (`npm run preview`), so the frontend works
-  out of the box. Open the frontend from any other address (another port, `127.0.0.1`, a deployed host) and that address
-  has to be added, for example `CORS_ALLOWED_ORIGINS=http://localhost:5173,https://school.example` in `.env`.
+- **Default:** `http://localhost:5173` (`npm run dev`), `http://localhost:4173` (`npm run preview`) and
+  `http://localhost:3000` (the web app container; it follows `FRONTEND_PORT`), so the frontend works out of the box. Open the
+  frontend from any other address (another port, `127.0.0.1`, a deployed host) and that address has to be added, for example
+  `CORS_ALLOWED_ORIGINS=http://localhost:3000,https://school.example` in `.env`.
 - **No wildcard.** `*`, `null`, a path, a query or credentials are refused, and the API stops at startup with a message
   naming the setting, so a typo cannot silently turn into "the browser blocks everything".
 - **Empty means off.** `CORS_ALLOWED_ORIGINS=` allows no browser origin (right when the frontend and the API share one origin).
@@ -141,6 +147,19 @@ dotnet test tests/IntegrationTests --filter "FullyQualifiedName~SwaggerDocument"
 The whole suite takes about 2 to 4 minutes (the first run is slower: it builds and pulls the image). The concurrency and
 restart tests start real API processes and are the slowest.
 
+## Run the frontend tests
+
+The web app's tests (Vitest, Testing Library and MSW, which fakes the API at the network boundary) need no backend and no
+database. Two ways:
+
+```bash
+docker build --target test ./frontend    # nothing but Docker: installs the locked dependencies on Node 22 and runs the tests
+cd frontend && npm ci && npm test        # on the host: Node 20.19+ or 22.12+
+```
+
+The Docker build fails if a test fails. `docker compose up` builds only the web app's last stage, so starting the stack never
+runs the tests.
+
 ## Run without Docker (optional)
 
 Needs the .NET 8 SDK and a PostgreSQL reachable at `localhost:5432` with database `school_admission` and user/password
@@ -166,12 +185,16 @@ backend/
   tests/IntegrationTests/  real PostgreSQL via Testcontainers
   Dockerfile           the backend image
   SchoolAdmission.sln
-frontend/              not started yet
+frontend/
+  src/                 React app (pages, api client, identity) and its tests (*.test.ts[x], src/test/)
+  Dockerfile           deps, test and build stages, then nginx serving the build
+  nginx.conf           single-page-app fallback, /config.js never cached
+  docker-entrypoint.d/ writes /config.js from API_BASE_URL when the container starts
 docs/
   API_CONTRACT.md      the frozen request/response contract
   ARCHITECTURE.md      design decisions: backend and frontend, under separate headings
   PROGRESS.md          build log: backend sessions and frontend sessions
-docker-compose.yml     PostgreSQL + backend (the frontend joins it later)
+docker-compose.yml     PostgreSQL + backend + frontend
 .env.example           every setting, with its default
 ASSUMPTIONS.md         decisions the brief did not specify
 ```

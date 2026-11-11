@@ -6,6 +6,7 @@ import { useCancelHold, useConfirmHold } from "../api/useHoldActions";
 import type { Hold, HoldStatus } from "../api/types";
 import ApiErrorText from "../components/ApiErrorText";
 import { AlertIcon, ArrowRightIcon, CheckIcon } from "../components/icons";
+import { MISSING_STUDENT_ID_MESSAGE, useRequireStudentId } from "../identity/requireStudentId";
 import { formatCountdown, parseInstant, resolveHold, URGENT_MS } from "./holdCountdown";
 import { useNow } from "./useNow";
 import "./ApplicationStatus.css";
@@ -115,6 +116,10 @@ function HoldDetails({
   const confirm = useConfirmHold(holdId);
   const cancel = useCancelHold(holdId);
   const busy = confirm.isPending || cancel.isPending;
+  // Both actions need a registration number, which a student who opened this link on a
+  // device that has none does not have yet. Without one nothing is sent: the screen says
+  // what to do and the cursor goes to the field, instead of the backend's header wording.
+  const requireId = useRequireStudentId();
 
   const held = view.status === "HELD";
   // Confirm needs a live countdown as well as a HELD status; cancel only the status.
@@ -124,10 +129,12 @@ function HoldDetails({
 
   // Starting one action clears the other's old failure, so at most one message shows.
   const onConfirm = () => {
+    if (!requireId.ensure()) return;
     cancel.reset();
     confirm.mutate();
   };
   const onCancel = () => {
+    if (!requireId.ensure()) return;
     confirm.reset();
     cancel.mutate();
   };
@@ -214,6 +221,13 @@ function HoldDetails({
               <span lang="bn">বাতিল</span>
             </button>
           </div>
+
+          {requireId.missing && (
+            <p className="hold-error" role="alert">
+              <AlertIcon />
+              <span className="hold-error-text">{MISSING_STUDENT_ID_MESSAGE}</span>
+            </p>
+          )}
 
           {actionError !== null && (
             <p className="hold-error" role="alert">

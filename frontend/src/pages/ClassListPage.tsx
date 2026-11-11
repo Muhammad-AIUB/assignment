@@ -4,6 +4,7 @@ import { useApplyForClass } from "../api/useApplyForClass";
 import { useClassList, type ClassListState } from "../api/useClassList";
 import type { ApiErrorBody, SchoolClass } from "../api/types";
 import { AlertIcon, ArrowRightIcon, InboxIcon } from "../components/icons";
+import { MISSING_STUDENT_ID_MESSAGE, useRequireStudentId } from "../identity/requireStudentId";
 import { seatStatus, splitClassName, type SeatStatus } from "./classSeats";
 import SeatStrip from "./SeatStrip";
 import "./ClassCards.css";
@@ -78,6 +79,9 @@ function indexStyle(index: number): CSSProperties {
 
 function ClassCard({ schoolClass, index }: { schoolClass: SchoolClass; index: number }) {
   const apply = useApplyForClass();
+  // Applying needs a registration number. Without one nothing is sent: the card says what
+  // to do and the cursor goes to the field, instead of the backend's header wording.
+  const requireId = useRequireStudentId();
   const status = seatStatus(schoolClass);
   const full = status === "full";
   const { title, subtitle } = splitClassName(schoolClass.name);
@@ -139,7 +143,9 @@ function ClassCard({ schoolClass, index }: { schoolClass: SchoolClass; index: nu
           disabled={full || apply.isPending}
           aria-busy={apply.isPending}
           aria-label={`আবেদন করুন: ${schoolClass.name}`}
-          onClick={() => apply.mutate(schoolClass.id)}
+          onClick={() => {
+            if (requireId.ensure()) apply.mutate(schoolClass.id);
+          }}
         >
           <span lang="bn">আবেদন করুন</span>
           {apply.isPending ? (
@@ -148,6 +154,13 @@ function ClassCard({ schoolClass, index }: { schoolClass: SchoolClass; index: nu
             <ArrowRightIcon className="btn-icon" />
           )}
         </button>
+
+        {requireId.missing && (
+          <p className="class-card-error" role="alert">
+            <AlertIcon />
+            <span className="class-card-error-text">{MISSING_STUDENT_ID_MESSAGE}</span>
+          </p>
+        )}
 
         {apply.isError && (
           <p className="class-card-error" role="alert">

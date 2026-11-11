@@ -630,3 +630,20 @@ Scope: the three gaps the Session 22 test run found (TC-F10, TC-F12, TC-F13). No
 
 ### Test-harness changes
 `expectCrash()` (`src/test/`) silences React's and jsdom's reports of an error a test throws on purpose, and returns the `console.error` spy so a test can still check what was logged. `renderWithProviders` accepts a `queryClient`: its default drops a query's data the moment nothing shows it (`gcTime: 0`), which hides exactly the cached-data bug the retry test is about.
+
+## Session 25 — Acting without a registration number
+
+Scope: Session 22's finding 5 (Apply with no number showed the backend's header wording), and the same fault on the status screen's confirm and cancel. No backend change, no contract change.
+
+### Stop the request, do not translate the answer
+The backend answers a request with no number `400 INVALID_STUDENT_ID` with the message "X-Student-Id header is required and must be exactly 17 digits." Two ways to fix the wording: map that code to a friendlier sentence in `describeApiError`, or never send the request. The second was chosen. The request is certain to fail, so sending it only adds a round trip; Session 14's rule (the backend's message is shown as written, no code-to-text table) stays true for every answer that does come back; and with a saved number the UI cannot produce `INVALID_STUDENT_ID` at all, because the store accepts only 17 digits (Session 12). The few places that need a number (Apply, confirm, cancel) share one guard instead of three copies of the check.
+
+### The guard: `useRequireStudentId()` (`src/identity/requireStudentId.ts`)
+- `ensure()` is called first in the click handler. With a number it returns true; without one it returns false, focuses the registration field and turns `missing` on. The screens draw `MISSING_STUDENT_ID_MESSAGE` in the alert slot they already have for failures of that action.
+- **`missing` is derived, not stored:** `asked && studentId === null`. When the student saves a number the message disappears with no effect or reset code, and cannot be left on screen by mistake.
+- **The button stays enabled.** A disabled button gives no reason, which is the argument Session 13 used for the "Full" tag. Pressing it is how the student learns what is missing, and it moves the cursor to the field.
+- **The field is found with `input[name="studentId"]`, an ordinary DOM query**, not a ref shared through context: one caller, one field, and nothing else needs to reach into the input. The coupling to the field's `name` is covered by tests that assert the focus lands on the field found by its label.
+- **Focus scrolls the page to the field**, which is the point (the header is not sticky, so the field may be off screen). The cost is that on a long class list the card's own message is then out of view; the field's standing hint and the alert (announced to screen readers) carry the message.
+
+### What was left alone
+`/me` already asks for the number and makes no request (Session 23). The create-class screen needs no number. A request that does reach the backend with a bad number still shows the backend's words.

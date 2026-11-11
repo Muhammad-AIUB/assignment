@@ -575,3 +575,26 @@ Npgsql's default `Maximum Pool Size` is 100 per process and `docker-compose.yml`
 
 ### Finding 2: where the frontend error boundary has to sit (open, for the error-handling session)
 A render error today leaves `#root` empty: no header, no message. Because `AppLayout` renders the header around `<Routes>`, a boundary placed **inside** the layout around the routes would keep the header and the registration input while a failed screen shows its fallback and a retry, and a second boundary above everything is the last resort. The same session should add the `*` route (an unknown URL currently renders the shell with an empty content area) and build `/me`.
+
+## Session 23 — My applications (`/me`), the error boundary, page not found
+
+Scope: the three gaps the Session 22 test run found (TC-F10, TC-F12, TC-F13). No backend change, no contract change. Test-first throughout; the tests were checked by breaking the code on purpose (see PROGRESS.md).
+
+### Two error boundaries, and what "Try again" does
+- **`ErrorBoundary`** is a class component because React only catches render errors in class components. It is used twice. **`ScreenBoundary`** (in `AppRoutes.tsx`) sits *inside* `AppLayout`, around `<Routes>`: a crashed screen shows the message in the page column while the header, the navigation and the registration number input stay, so the student can still switch number or go elsewhere. **`Root`** wraps the whole provider stack in a last-resort boundary for a crash in the header or anything above the screens; its fallback uses no router, query client or context, and "Back to classes" is a plain `<a href="/">`, a full load that also clears whatever state caused the crash.
+- **A crashed screen is left by navigating.** `resetKey` is the current path. It only clears a fallback that was already showing before the update: if the path changes in the same update that crashes (the student went to a screen that fails), the fallback stays instead of trying the same screen a second time.
+- **"Try again" empties the query cache first** (`queryClient.removeQueries()` in `ScreenBoundary`'s `onReset`). The Session 22 failure was *data*, a response in the wrong shape; the cache keeps it for 5 minutes (`gcTime`) and would hand the same object to the screen on the next render, which would crash again at once. With the cache empty the screen starts from a fresh request. This is blunt (it drops every query), but it only runs on the retry path, and the crashed subtree has no observers left. Checked: with the reset removed, the "recovers on Try again" test fails.
+- **The boundary logs** with `console.error("[ErrorBoundary] ...", error, componentStack)` because a production build of React says nothing about an error a boundary has caught; without the line a crash would leave no trace.
+- **What it does not do.** It catches errors thrown while rendering. Errors in event handlers, in async code and failed requests are not caught (each screen already shows its own request failures). It *contains* a response in an unexpected shape but does not *prevent* it: no response validation was added, so a screen that receives such a response shows the crash message, not a degraded list.
+
+### My applications (`/me`)
+- **`useMyHolds()`** is gated on a registration number (`enabled`), has that number in its query key, polls every 4 s like the class list and the status screen, and keeps no retry. The key is what stops one student's list reaching another: switching numbers is a different query with no data, so the screen shows its loading state, never the previous list (tested with the second student's answer held back). Without a number there is nothing to ask and no request goes out; the screen says "Enter your registration number to see your applications."
+- **The list keeps the server's order** (newest first, Session 4). Each row is one `li` with the class name as an `h2`, the same status words and badge colours as the status screen, a one-line summary and a link named "View status of <class>". A running hold also says "Hold ends <time of day>"; the other statuses have no end to tell about.
+- **No per-row countdown, on purpose.** A held row can say "On hold" for up to one poll (4 s) after its deadline; the exact, second-by-second countdown belongs to the status screen the row links to. Per-row timers would add N intervals for a summary.
+- **Duplication left in place:** the status words and badge classes are a small map in `MyApplicationsPage.tsx` that repeats the status screen's (whose copy is local to that file); and `useMyHolds` is the third copy of the "remember the last error until a request succeeds" device (after `useClassList` and `useHold`). A shared helper for both is still open.
+
+### Page not found
+`<Route path="*">` renders `NotFoundPage` inside the shell, so an unknown address, `/holds` with no id and `/admin` all show "Page not found" and a link to the classes instead of an empty content area.
+
+### Test-harness changes
+`expectCrash()` (`src/test/`) silences React's and jsdom's reports of an error a test throws on purpose, and returns the `console.error` spy so a test can still check what was logged. `renderWithProviders` accepts a `queryClient`: its default drops a query's data the moment nothing shows it (`gcTime: 0`), which hides exactly the cached-data bug the retry test is about.

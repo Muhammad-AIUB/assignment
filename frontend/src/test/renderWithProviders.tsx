@@ -14,6 +14,13 @@ export interface RenderOptions {
    * entered it on an earlier visit. Left out: nothing is saved.
    */
   studentId?: string;
+  /**
+   * Use this client instead of the default one. The default throws a query's data away
+   * the moment nothing shows it (gcTime 0), which is tidy for most tests but hides any
+   * bug that comes from data the app has cached; pass a client with the production
+   * cache time to test those.
+   */
+  queryClient?: QueryClient;
 }
 
 /**
@@ -24,14 +31,16 @@ export interface RenderOptions {
  */
 export function renderWithProviders(
   ui: ReactElement = <AppRoutes />,
-  { route = "/", studentId }: RenderOptions = {},
+  { route = "/", studentId, queryClient: ownClient }: RenderOptions = {},
 ) {
   if (studentId !== undefined) {
     window.localStorage.setItem(STUDENT_ID_STORAGE_KEY, studentId);
   }
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
-  });
+  const queryClient =
+    ownClient ??
+    new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
   const result = render(
     <QueryClientProvider client={queryClient}>
       <StudentIdProvider>

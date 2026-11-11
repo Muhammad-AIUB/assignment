@@ -18,11 +18,15 @@
   box-shadow: var(--shadow-card);
 }
 
-/* Inside <main> every direct child is a centred column with page gutters (AppLayout.css):
-   the card keeps the same gutter on a phone. */
-.app-main > .crash {
-  margin-inline: auto;
+/* Inside <main> every direct child is made a full-width centred column with page
+   gutters (`.app-main > :not(.hero)` in AppLayout.css), which would stretch this card.
+   The extra `main` in the selector outranks that rule whatever order the files load in:
+   the card stays narrow and keeps the page gutter on a phone. */
+main.app-main > .crash {
   width: calc(100% - 2 * var(--gutter));
+  max-width: 34rem;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
 }
 
 .crash-icon {

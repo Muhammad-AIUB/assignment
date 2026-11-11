@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import type { Hold, SchoolClass } from "../api/types";
+import type { Hold, MyHold, SchoolClass } from "../api/types";
 import { API_BASE, server } from "./server";
 
 /** A valid 17-digit registration number. */
@@ -10,6 +10,18 @@ export function aHold(overrides: Partial<Hold> = {}): Hold {
   return {
     holdId: "h_1",
     classId: "c_1",
+    status: "HELD",
+    expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+    ...overrides,
+  };
+}
+
+/** One item of GET /me/holds. Expires in ten minutes unless told otherwise. */
+export function aMyHold(overrides: Partial<MyHold> = {}): MyHold {
+  return {
+    holdId: "h_1",
+    classId: "c_1",
+    className: "Class 6 - Morning Shift",
     status: "HELD",
     expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
     ...overrides,

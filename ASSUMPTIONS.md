@@ -99,3 +99,25 @@ notion of admission years, shifts or student profiles. None is mentioned in the 
 - The student-id pattern accepts a trailing newline (`$` also matches before a final `\n` in .NET). A header value cannot
   contain a newline over HTTP, so it is not reachable; a skipped unit test documents it, and the fix is `\z` in place of `$`.
 - The few requests the web server rejects before the application runs (assumption 18) cannot be given the standard error shape.
+
+## Known test failures
+
+**None at submission.** On 2026-11-11 `cd backend && dotnet test` passed in full, twice: 174 unit tests passed and 1 was skipped
+on purpose (the trailing-newline test above), and 273 integration tests passed. The second run was on a clean export of the
+committed code.
+
+One thing is not settled. An earlier run (Session 16) recorded 7 integration failures: `HoldExpirySweeperTests` 2,
+`MultiProcessSeatRaceTests` 2, `RestartPersistenceTests` 2 and `SeatRaceTests` 1. They did not reproduce, and their assertion
+messages were never saved, so what each one said is unknown.
+
+- **Best guess:** machine load, not a defect in the application or a wrong assertion. That run logged Npgsql
+  `Timeout during reading attempt` errors and race rounds of 20-38 s (about 0.6 s on a healthy machine) with roughly 500 MB of
+  RAM free. Npgsql's default command timeout is 30 s, which is the same size as those rounds. This is an inference from the
+  logs, not something that was reproduced.
+- **Evidence it is load-sensitive but not fragile:** during the second run other test runs were using the same machine and
+  Docker, and the run took 7.0 min instead of 4.6 min. The heaviest race and cleanup tests ran about three times slower, and
+  all of them still passed.
+- **With more time:** run the four classes (`SeatRace`, `MultiProcessSeatRace`, `RestartPersistence`, `HoldExpirySweeper`) with
+  Docker limited to about 1 GB of RAM and one or two CPUs, and save the failure messages. Then check whether the tests need a
+  larger `Command Timeout` in their connection strings, or a sampler loop that does not spin (`SeatRace.cs` queries the
+  database back to back for the whole race), or no change at all.

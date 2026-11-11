@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -171,13 +172,23 @@ public sealed class TwoApiInstancesFixture : IAsyncLifetime
     public ApiProcess A => _a ?? throw new InvalidOperationException("Instance A is not running.");
     public ApiProcess B => _b ?? throw new InvalidOperationException("Instance B is not running.");
 
+    /// <summary>
+    /// What an instance calls itself to Postgres (<c>Application Name</c> in its connection string), so the connections each
+    /// instance holds can be told apart in <c>pg_stat_activity</c>. The connection string is otherwise exactly the deployment's:
+    /// no pool size is given, so whatever the API defaults to is what runs.
+    /// </summary>
+    public static string ApplicationName(string instance) => $"api-{instance}";
+
+    private string ConnectionStringFor(string instance) =>
+        new NpgsqlConnectionStringBuilder(ConnectionString) { ApplicationName = ApplicationName(instance) }.ConnectionString;
+
     public async Task InitializeAsync()
     {
         await _pg.StartAsync();
         try
         {
-            _a = await ApiProcess.StartAsync("A", ConnectionString);
-            _b = await ApiProcess.StartAsync("B", ConnectionString);
+            _a = await ApiProcess.StartAsync("A", ConnectionStringFor("A"));
+            _b = await ApiProcess.StartAsync("B", ConnectionStringFor("B"));
         }
         catch
         {

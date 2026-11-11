@@ -18,6 +18,10 @@ public static class DependencyInjection
                 "ConnectionStrings:Postgres is not configured. Set it in appsettings or the ConnectionStrings__Postgres environment variable.");
         }
 
+        // Applied here, not only in docker-compose.yml, so the cap holds however the API is started (dotnet run, a test host,
+        // another orchestrator). An explicit "Maximum Pool Size" in the string still wins. See PostgresConnectionString.
+        connectionString = PostgresConnectionString.WithDefaultPoolLimit(connectionString).ConnectionString;
+
         services.AddDbContext<AppDbContext>(o => o.UseNpgsql(connectionString));
 
         services.AddOptions<HoldOptions>()

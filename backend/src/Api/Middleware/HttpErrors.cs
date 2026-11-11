@@ -15,7 +15,7 @@ internal static class HttpErrors
         406 => ("NOT_ACCEPTABLE", "The server cannot produce a response in a format the client accepts; use application/json."),
         408 => ("REQUEST_TIMEOUT", "The request took too long to arrive."),
         413 => ("PAYLOAD_TOO_LARGE", "The request body is too large."),
-        415 => ("UNSUPPORTED_MEDIA_TYPE", "The request body must be sent as application/json."),
+        415 => ("UNSUPPORTED_MEDIA_TYPE", "The request body must be sent as application/json, encoded as UTF-8."),
         _ => ("REQUEST_REJECTED", "The request could not be processed.")
     };
 }

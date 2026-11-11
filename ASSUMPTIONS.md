@@ -65,6 +65,11 @@ change, the setting or place is named. The request/response shapes themselves ar
 18. **Framework errors use the same shape** (unknown route `404 ROUTE_NOT_FOUND`, wrong method `405 METHOD_NOT_ALLOWED`,
     wrong content type `415 UNSUPPORTED_MEDIA_TYPE`). The exception: the web server rejects a few malformed requests before
     the application runs (a `%00` in the URL path, a broken request line, oversized headers) with its own bare 400/431.
+    **A request body must be UTF-8 JSON.** A `Content-Type` that names any other charset (`utf-16`, `utf-32`, `iso-8859-1`,
+    ...) or that cannot be parsed (`application/json; charset=`) is `415 UNSUPPORTED_MEDIA_TYPE`, never the catch-all
+    `UNEXPECTED_ERROR`. JSON exchanged between systems is UTF-8 (RFC 8259), and UTF-16 used to be accepted only by accident of
+    the framework's decoder, which crashed on any body that was not valid UTF-16. The header is judged only when the request
+    has a body.
 19. **`GET /health` is an extra endpoint** beyond the eight in the contract: 200 when the database answers within 3 seconds,
     otherwise `503 DATABASE_UNAVAILABLE`. It is the only intended 5xx, because it is an infrastructure probe rather than a
     student endpoint.
@@ -88,6 +93,13 @@ change, the setting or place is named. The request/response shapes themselves ar
     `Origin` header (curl, other servers) are unaffected. *Why:* the frontend is served from its own origin, and without
     this a browser discards every response. This is not access control: a request from another origin is still answered,
     the browser just will not give it to that page (assumption 1 still holds). No contract field or status changed.
+25. **One API instance holds at most 30 database connections** (`Maximum Pool Size`, default 30; `DB_MAX_POOL_SIZE` in
+    Docker Compose; a value in the connection string always wins). PostgreSQL's default `max_connections` is 100 with 3 kept
+    for superusers, so three instances of 30 fit (90 of 97). *Why:* with Npgsql's own default of 100 per process, one instance
+    could keep nearly every connection the server has after a burst, and another instance's requests then failed with
+    `53300 too many clients already` (seen by the student as `400 UNEXPECTED_ERROR`). Seat safety never depended on this: it is
+    enforced in the database. If all 30 connections are busy a request waits for one (Npgsql's 15-second connection timeout
+    applies) instead of being refused at once.
 
 ## Out of scope
 

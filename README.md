@@ -42,6 +42,7 @@ git-ignored) and edit it; Docker Compose picks it up on the next `up`.
 | `HOLD_DURATION_SECONDS` | `600` | How long a hold lasts before the seat is released (must be > 0) |
 | `HOLD_EXPIRY_SWEEP_ENABLED` | `true` | Background job that tidies expired holds. Holds expire correctly even when it is off |
 | `HOLD_EXPIRY_SWEEP_INTERVAL_SECONDS` | `5` | How often that job runs |
+| `DB_MAX_POOL_SIZE` | `30` | Most database connections one API instance may hold. PostgreSQL allows 97 ordinary connections, so 30 fits three instances (3 x 30 = 90); lower it, or raise `max_connections`, if you run more. The API applies 30 itself when a connection string sets no `Maximum Pool Size` |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:4173,http://localhost:3000` | Browser origins allowed to call the API, comma-separated (see [Calling the API from a browser](#calling-the-api-from-a-browser-cors)). Empty means none |
 | `API_PORT` | `8080` | Host port the API is published on |
 | `FRONTEND_PORT` | `3000` | Host port the web app is published on (the default CORS list follows it) |

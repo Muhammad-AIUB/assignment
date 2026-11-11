@@ -70,6 +70,10 @@ try
     else
         app.Logger.LogInformation("CORS allows browser origins {AllowedOrigins}", corsOptions.AllowedOrigins);
 
+    // Shown at startup so an operator can see what each instance may take from PostgreSQL (instances x this must stay below its max_connections).
+    app.Logger.LogInformation("Database pool allows at most {MaxPoolSize} connections per instance",
+        PostgresConnectionString.WithDefaultPoolLimit(builder.Configuration.GetConnectionString("Postgres")!).MaxPoolSize);
+
     // Apply pending migrations on startup.
     await using (var scope = app.Services.CreateAsyncScope())
     {
@@ -85,6 +89,10 @@ try
     app.UseSerilogRequestLogging();
     app.UseCors();
     app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+    // A body labelled with a charset other than UTF-8 (or with a Content-Type that cannot be parsed) is refused with 415
+    // before model binding, where it used to throw inside MVC's decoder and reach the handler above as UNEXPECTED_ERROR.
+    app.UseMiddleware<RequestContentTypeMiddleware>();
 
     // 4xx the framework produces with no body of its own (unknown route 404, wrong method 405, wrong content type 415)
     // get the standard error shape too. Responses that already have a body (every controller error) are left alone.

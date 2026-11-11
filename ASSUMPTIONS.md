@@ -133,3 +133,13 @@ messages were never saved, so what each one said is unknown.
   Docker limited to about 1 GB of RAM and one or two CPUs, and save the failure messages. Then check whether the tests need a
   larger `Command Timeout` in their connection strings, or a sampler loop that does not spin (`SeatRace.cs` queries the
   database back to back for the whole race), or no change at all.
+
+## Known test failures — addendum (2026-11-11, later the same day)
+
+A second, different batch of integration failures appeared once, then did not reproduce: a full run had 27
+of 292 fail (across `SeatAccountingRuleTests`, `SeatRaceTests`, `UnsupportedContentTypeTests` and
+`RestartPersistenceTests`), and an immediate rerun on the same commit passed 292 of 292. As with the
+7-failure batch above, the messages were not saved, only the names and counts, so neither batch can be
+confirmed as the same underlying cause — only that both patterns look like transient machine load
+(multiple sessions sharing one development machine and its Docker daemon) rather than a defect that
+reproduces on demand. Treat a repeat of either pattern as worth capturing a full log before re-running.

@@ -332,12 +332,3 @@
   color: var(--ink);
 }
 
-.app-footer-admin {
-  color: var(--ink-soft);
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-}
-
-.app-footer-admin:hover {
-  color: var(--ink);
-}
